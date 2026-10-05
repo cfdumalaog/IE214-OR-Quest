@@ -214,6 +214,9 @@ def get_transcript(folder: str):
         synth_cues = []
         for idx, sm in enumerate(markers):
             next_time = markers[idx + 1]["time_sec"] if idx + 1 < len(markers) else (sm["time_sec"] + 900)
+            slide_num = sm.get("slide", idx + 1)
+            sm_title = sm.get("title", f"Slide {slide_num}")
+            sm_topic = f" - {sm['topic']}" if sm.get("topic") else ""
             synth_cues.append({
                 "id": idx + 1,
                 "start": float(sm["time_sec"]),
@@ -221,7 +224,7 @@ def get_transcript(folder: str):
                 "start_str": f"{sm['time_sec'] // 60:02d}:{sm['time_sec'] % 60:02d}",
                 "end_str": f"{next_time // 60:02d}:{next_time % 60:02d}",
                 "speaker": "Professor Lowell Lorenzo",
-                "text": f"Topic: {sm['title']} (Slide {sm['slide']}) - {sm['topic']}"
+                "text": f"Topic: {sm_title}{sm_topic}"
             })
         return {
             "has_vtt": False,
@@ -252,7 +255,9 @@ def get_raw_vtt(folder: str):
         for idx, sm in enumerate(mod["slide_markers"]):
             s = sm["time_sec"]
             e = mod["slide_markers"][idx+1]["time_sec"] if idx+1 < len(mod["slide_markers"]) else s + 600
-            vtt_content.append(f"{idx+1}\n{s//3600:02d}:{(s%3600)//60:02d}:{s%60:02d}.000 --> {e//3600:02d}:{(e%3600)//60:02d}:{e%60:02d}.000\nSlide {sm['slide']}: {sm['title']}\n\n")
+            slide_n = sm.get("slide", idx + 1)
+            slide_t = sm.get("title", f"Slide {slide_n}")
+            vtt_content.append(f"{idx+1}\n{s//3600:02d}:{(s%3600)//60:02d}:{s%60:02d}.000 --> {e//3600:02d}:{(e%3600)//60:02d}:{e%60:02d}.000\nSlide {slide_n}: {slide_t}\n\n")
         return Response(content="".join(vtt_content), media_type="text/vtt")
 
     return Response(content="WEBVTT\n\n1\n00:00:00.000 --> 00:00:10.000\nNo transcript available. Click Transcribe.\n", media_type="text/vtt")

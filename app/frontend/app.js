@@ -420,7 +420,6 @@ function onStreamSelect(filename) {
 
 // ----------------- VIDEO PLAYER EVENTS & SYNC -----------------
 const video = document.getElementById("main-video");
-const playBtnIcon = document.getElementById("play-icon");
 const progressBar = document.getElementById("video-progress");
 const timeDisplay = document.getElementById("time-display");
 const subtitleOverlay = document.getElementById("subtitle-overlay");
@@ -428,22 +427,57 @@ const subtitleText = document.getElementById("subtitle-text");
 
 function togglePlay() {
   playSfx('click');
-  if (video.paused) {
-    video.play();
+  const wasPaused = (video.paused || video.ended);
+  if (wasPaused) {
+    video.play().catch(e => console.warn("Video play error:", e));
   } else {
     video.pause();
   }
+  // Flash center indicator: ▶ when playing, ⏸ when paused
+  const flash = document.getElementById('play-flash');
+  const flashIcon = document.getElementById('play-flash-icon');
+  if (flash && flashIcon) {
+    flashIcon.textContent = wasPaused ? '▶' : '⏸';
+    flash.classList.remove('opacity-0');
+    clearTimeout(flash._timer);
+    flash._timer = setTimeout(() => flash.classList.add('opacity-0'), 600);
+  }
+}
+
+function updatePlayBtn(isPlaying) {
+  const btn = document.getElementById('play-icon');
+  const playBtnEl = document.getElementById('play-btn');
+  if (btn) btn.textContent = isPlaying ? '⏸' : '▶';
+  if (playBtnEl) playBtnEl.title = isPlaying ? "Pause (Space)" : "Play (Space)";
 }
 
 video.addEventListener("play", () => {
-  playBtnIcon.setAttribute("data-lucide", "pause");
-  lucide.createIcons();
+  updatePlayBtn(true);
 });
 
 video.addEventListener("pause", () => {
-  playBtnIcon.setAttribute("data-lucide", "play");
-  lucide.createIcons();
+  updatePlayBtn(false);
 });
+
+video.addEventListener("ended", () => {
+  updatePlayBtn(false);
+});
+
+// Keyboard navigation: Spacebar toggles Play/Pause, Arrow keys seek
+document.addEventListener("keydown", (e) => {
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+  if (e.code === "Space") {
+    e.preventDefault();
+    togglePlay();
+  } else if (e.code === "ArrowLeft") {
+    e.preventDefault();
+    seekVideo(-10);
+  } else if (e.code === "ArrowRight") {
+    e.preventDefault();
+    seekVideo(10);
+  }
+});
+
 
 function seekVideo(seconds) {
   playSfx('click');
@@ -887,17 +921,52 @@ function updateSprintUI(cur) {
   const sprints = state.currentModule.sprints;
   if (sprints.length === 0) return;
 
-  // Auto detect sprint if scrubbed
-  const detectedIdx = sprints.findIndex(s => cur >= s.start_sec && cur < s.end_sec);
-  if (detectedIdx !== -1 && detectedIdx !== state.currentSprintIndex) {
-    state.currentSprintIndex = detectedIdx;
-    state.sprintCompletedThisRun = false;
-    renderCurrentSprintCard();
-  }
-
-  const sprint = sprints[state.currentSprintIndex];
+  let sprint = sprints[state.currentSprintIndex];
   if (!sprint) return;
 
+  // 1. ACTIVE SPRINT COMPLETION CHECK (evaluated first so auto-detect never skips it)
+  if (cur >= sprint.end_sec && !state.sprintCompletedThisRun) {
+    state.sprintCompletedThisRun = true;
+    state.completedSprints.add(sprint.id);
+    localStorage.setItem('or_quest_completed_sprints', JSON.stringify(Array.from(state.completedSprints)));
+
+    // Auto-Pause check: pause video immediately to give the user a rest break
+    const autoPause = document.getElementById("sprint-autopause")?.checked;
+    if (autoPause) {
+      video.pause();
+    }
+
+    playSfx('levelup');
+    sendPlayerAction("sprint_complete", { sprint_id: sprint.id, module_id: state.currentModule.id });
+    triggerCelebration(
+      "⚡",
+      `Sprint ${sprint.number} Completed!`,
+      `Outstanding focus! You finished "${sprint.title}". Take a quick stretch break, then hit Next Sprint when ready! (+30 XP)`
+    );
+    renderSprintDrawer(sprints);
+
+    // Keep progress bar at 100% and countdown at 00:00 during completion pause
+    const countdownEl = document.getElementById("sprint-countdown");
+    if (countdownEl) countdownEl.innerText = "00:00 (Break Time)";
+    const progressBarEl = document.getElementById("sprint-progress-bar");
+    const percentEl = document.getElementById("sprint-progress-percent");
+    if (progressBarEl) progressBarEl.style.width = "100%";
+    if (percentEl) percentEl.innerText = "100% Completed";
+    return;
+  }
+
+  // 2. AUTO-DETECT SPRINT ON SCRUBBING (only if scrubbed outside current bounds)
+  if (cur < sprint.start_sec || (cur > sprint.end_sec + 2 && state.sprintCompletedThisRun)) {
+    const detectedIdx = sprints.findIndex(s => cur >= s.start_sec && cur < s.end_sec);
+    if (detectedIdx !== -1 && detectedIdx !== state.currentSprintIndex) {
+      state.currentSprintIndex = detectedIdx;
+      state.sprintCompletedThisRun = false;
+      renderCurrentSprintCard();
+      sprint = sprints[state.currentSprintIndex];
+    }
+  }
+
+  // 3. UPDATE COUNTDOWN & PROGRESS BAR
   const remainingSec = Math.max(0, sprint.end_sec - cur);
   const countdownEl = document.getElementById("sprint-countdown");
   if (countdownEl) {
@@ -912,27 +981,8 @@ function updateSprintUI(cur) {
   const percentEl = document.getElementById("sprint-progress-percent");
   if (progressBarEl) progressBarEl.style.width = `${pct}%`;
   if (percentEl) percentEl.innerText = `${pct}% Completed`;
-
-  if (cur >= sprint.end_sec && !state.sprintCompletedThisRun && !video.paused) {
-    state.sprintCompletedThisRun = true;
-    state.completedSprints.add(sprint.id);
-    localStorage.setItem('or_quest_completed_sprints', JSON.stringify(Array.from(state.completedSprints)));
-
-    const autoPause = document.getElementById("sprint-autopause")?.checked;
-    if (autoPause) {
-      video.pause();
-    }
-
-    playSfx('levelup');
-    sendPlayerAction("sprint_complete", { sprint_id: sprint.id, module_id: state.currentModule.id });
-    triggerCelebration(
-      "⚡",
-      `Sprint ${sprint.number} Completed!`,
-      `Outstanding focus! You finished "${sprint.title}". Take a quick stretch break, then hit Next Sprint when ready! (+30 XP)`
-    );
-    renderSprintDrawer(sprints);
-  }
 }
+
 
 function triggerToast(msg) {
   let toast = document.getElementById("app-toast");
