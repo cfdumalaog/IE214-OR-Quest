@@ -48,11 +48,15 @@ def transcribe_file(video_path: str, vtt_path: str, model: WhisperModel, prompt:
     print(f"\n[{time.strftime('%H:%M:%S')}] Starting transcription for: {vname}")
     print(f"  Target VTT: {os.path.basename(vtt_path)}")
 
-    # 1. Audio extraction
-    print(f"  [1/3] Extracting 16kHz mono audio via ffmpeg...")
-    extract_audio(video_path, temp_wav)
-    wav_size_mb = os.path.getsize(temp_wav) / (1024 * 1024)
-    print(f"  [1/3] Audio extracted ({wav_size_mb:.1f} MB)")
+    # 1. Audio extraction (reuse if already extracted)
+    if os.path.exists(temp_wav) and os.path.getsize(temp_wav) > 1024 * 1024:
+        wav_size_mb = os.path.getsize(temp_wav) / (1024 * 1024)
+        print(f"  [1/3] Using already extracted audio ({wav_size_mb:.1f} MB)")
+    else:
+        print(f"  [1/3] Extracting 16kHz mono audio via ffmpeg...")
+        extract_audio(video_path, temp_wav)
+        wav_size_mb = os.path.getsize(temp_wav) / (1024 * 1024)
+        print(f"  [1/3] Audio extracted ({wav_size_mb:.1f} MB)")
 
     # 2. Transcription with multilingual whisper
     print(f"  [2/3] Transcribing with faster-whisper 'small' (English + Filipino)...")
@@ -66,25 +70,35 @@ def transcribe_file(video_path: str, vtt_path: str, model: WhisperModel, prompt:
 
     print(f"  Detected language: {info.language} (confidence: {info.language_probability:.2f}), duration: {info.duration/60:.1f} mins")
 
-    # 3. Write WebVTT
-    vtt_lines = ["WEBVTT\n\n"]
-    cue_idx = 1
-    last_log = time.time()
+    # 3. Stream cues directly to VTT with immediate flushing
+    temp_vtt = vtt_path + ".partial"
+    with open(temp_vtt, "w", encoding="utf-8") as f_out:
+        f_out.write("WEBVTT\n\n")
+        f_out.flush()
 
-    for seg in segments:
-        s_vtt = format_vtt_timestamp(seg.start)
-        e_vtt = format_vtt_timestamp(seg.end)
-        text = seg.text.strip()
-        vtt_lines.append(f"{cue_idx}\n{s_vtt} --> {e_vtt}\n{text}\n\n")
-        cue_idx += 1
+        cue_idx = 1
+        last_log = time.time()
 
-        if time.time() - last_log >= 15:
-            pct = min(99, int((seg.end / (info.duration or 1.0)) * 100))
-            print(f"    Progress: {pct}% ({int(seg.end//60)}m / {int(info.duration//60)}m, {cue_idx} cues)...")
-            last_log = time.time()
+        for seg in segments:
+            s_vtt = format_vtt_timestamp(seg.start)
+            e_vtt = format_vtt_timestamp(seg.end)
+            text = seg.text.strip()
+            f_out.write(f"{cue_idx}\n{s_vtt} --> {e_vtt}\n{text}\n\n")
+            f_out.flush()
+            cue_idx += 1
 
-    with open(vtt_path, "w", encoding="utf-8") as f:
-        f.writelines(vtt_lines)
+            if time.time() - last_log >= 15:
+                pct = min(99, int((seg.end / (info.duration or 1.0)) * 100))
+                print(f"    Progress: {pct}% ({int(seg.end//60)}m / {int(info.duration//60)}m, {cue_idx} cues)...")
+                last_log = time.time()
+
+    # Move partial VTT to final VTT path
+    if os.path.exists(vtt_path):
+        try:
+            os.remove(vtt_path)
+        except Exception:
+            pass
+    os.rename(temp_vtt, vtt_path)
 
     # Cleanup temp wav
     if os.path.exists(temp_wav):
