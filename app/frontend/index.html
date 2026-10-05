@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OR-Quest: IE 214 Introductory Operations Research</title>
+  <link rel="icon" type="image/x-icon" href="/static/icon.ico">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              900: '#14532d',
+            },
+            accent: {
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+            },
+            dark: {
+              800: '#1e293b',
+              850: '#172033',
+              900: '#0f172a',
+              950: '#080d1a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js for Radar Skill Chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="bg-dark-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white">
+
+  <!-- TOP HEADER & PROGRESS BAR -->
+  <header class="sticky top-0 z-50 bg-dark-900/90 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      
+      <!-- LOGO -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('theater')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-accent-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <i data-lucide="compass" class="w-6 h-6 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-lg tracking-wider bg-gradient-to-r from-brand-400 to-accent-400 bg-clip-text text-transparent">OR-QUEST</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-brand-500/10 border border-brand-500/30 text-brand-400 font-mono">IE 214</span>
+          </div>
+          <p class="text-[11px] text-slate-400">Introductory Operations Research</p>
+        </div>
+      </div>
+
+      <!-- NAVIGATION TABS -->
+      <nav class="hidden md:flex items-center gap-1 bg-dark-950/70 p-1 rounded-xl border border-slate-800">
+        <button onclick="switchTab('theater')" id="tab-btn-theater" class="nav-btn active flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all">
+          <i data-lucide="play-circle" class="w-4 h-4"></i>
+          <span>Lecture Theater</span>
+        </button>
+        <button onclick="switchTab('campaign')" id="tab-btn-campaign" class="nav-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white">
+          <i data-lucide="map" class="w-4 h-4"></i>
+          <span>Campaign Map</span>
+        </button>
+        <button onclick="switchTab('arcade')" id="tab-btn-arcade" class="nav-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white">
+          <i data-lucide="gamepad-2" class="w-4 h-4"></i>
+          <span>OR Arcade</span>
+        </button>
+        <button onclick="switchTab('trophy')" id="tab-btn-trophy" class="nav-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white">
+          <i data-lucide="award" class="w-4 h-4"></i>
+          <span>Trophy Room</span>
+        </button>
+        <button onclick="switchTab('manager')" id="tab-btn-manager" class="nav-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white">
+          <i data-lucide="download-cloud" class="w-4 h-4"></i>
+          <span>Lectures & AI</span>
+        </button>
+      </nav>
+
+      <!-- PLAYER HUD / PROGRESS -->
+      <div class="flex items-center gap-4">
+        <!-- Streak -->
+        <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-semibold" title="Study Streak">
+          <span>🔥</span>
+          <span id="hud-streak">1 Day Streak</span>
+        </div>
+
+        <!-- Rank & XP Bar -->
+        <div class="cursor-pointer" onclick="switchTab('trophy')">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-bold text-brand-400 flex items-center gap-1">
+              <span id="hud-badge-icon">🌱</span>
+              <span id="hud-rank-title">OR Novice</span>
+            </span>
+            <span class="text-slate-400 font-mono text-[11px]" id="hud-xp-text">0 / 300 XP</span>
+          </div>
+          <div class="w-28 sm:w-36 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+            <div id="hud-xp-bar" class="h-full bg-gradient-to-r from-brand-500 to-accent-500 transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Sound FX Toggle -->
+        <button onclick="toggleAudioFx()" id="audio-fx-btn" class="p-2 rounded-lg bg-dark-800 border border-slate-700 text-slate-300 hover:text-brand-400 transition" title="Toggle Sound FX">
+          <i data-lucide="volume-2" id="audio-fx-icon" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ==================== VIEW 1: LECTURE THEATER ==================== -->
+    <section id="view-theater" class="space-y-6">
+      
+      <!-- LECTURE SELECTOR BAR -->
+      <div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 rounded-xl bg-brand-500/10 text-brand-400 border border-brand-500/20">
+            <i data-lucide="film" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">Current Lecture Session</label>
+            <select id="lecture-selector" onchange="onLectureSelect(this.value)" class="bg-dark-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm font-semibold text-white focus:outline-none focus:border-brand-500">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+        </div>
+
+        <!-- STREAM SELECTOR (Screen share vs Speaker vs Gallery) -->
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-400 font-medium">Camera Angle:</label>
+            <select id="stream-selector" onchange="onStreamSelect(this.value)" class="bg-dark-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-accent-500">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <!-- Quick Jump Prev/Next -->
+          <div class="flex items-center gap-1 border-l border-slate-800 pl-3">
+            <button onclick="navigateLecture(-1)" class="p-1.5 rounded-lg hover:bg-dark-800 text-slate-400 hover:text-white" title="Previous Lecture">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <button onclick="navigateLecture(1)" class="p-1.5 rounded-lg hover:bg-dark-800 text-slate-400 hover:text-white" title="Next Lecture">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN SPLIT LAYOUT: VIDEO (LEFT) + SLIDES/TRANSCRIPT (RIGHT) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: VIDEO PLAYER (7 cols on lg) -->
+        <div class="lg:col-span-7 space-y-4">
+          
+          <!-- VIDEO CONTAINER WITH CUSTOM SUBTITLES -->
+          <div class="relative bg-black rounded-2xl overflow-hidden border border-slate-800 shadow-2xl aspect-video group">
+            
+            <video id="main-video" class="w-full h-full object-contain" preload="metadata" playsinline crossorigin="anonymous">
+              <!-- source dynamically set -->
+            </video>
+
+            <!-- CUSTOM CLOSED CAPTION SUBTITLE OVERLAY -->
+            <div id="subtitle-overlay" class="absolute bottom-16 inset-x-4 text-center pointer-events-none transition-opacity duration-300">
+              <span id="subtitle-text" class="inline-block px-4 py-1.5 rounded-lg bg-black/85 backdrop-blur-md text-amber-300 text-sm sm:text-base md:text-lg font-medium shadow-2xl border border-white/10 tracking-wide max-w-2xl leading-relaxed">
+                Loading subtitles...
+              </span>
+            </div>
+
+            <!-- CUSTOM HOVER CONTROLS BAR -->
+            <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent p-3 pt-6 flex flex-col gap-2 transition-opacity duration-300">
+              
+              <!-- PROGRESS SCRUB BAR -->
+              <div class="flex items-center gap-2">
+                <input type="range" id="video-progress" min="0" max="100" value="0" step="0.1" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand-500">
+              </div>
+
+              <!-- CONTROLS ROW -->
+              <div class="flex items-center justify-between text-xs text-slate-300">
+                <div class="flex items-center gap-3">
+                  <!-- Play / Pause -->
+                  <button onclick="togglePlay()" id="play-btn" class="p-1.5 rounded-lg hover:bg-white/20 text-white transition">
+                    <i data-lucide="play" id="play-icon" class="w-5 h-5"></i>
+                  </button>
+                  <!-- Rewind 10s -->
+                  <button onclick="seekVideo(-10)" class="p-1 rounded-lg hover:bg-white/20 text-slate-300 hover:text-white" title="Rewind 10s">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                  </button>
+                  <!-- Forward 10s -->
+                  <button onclick="seekVideo(10)" class="p-1 rounded-lg hover:bg-white/20 text-slate-300 hover:text-white" title="Forward 10s">
+                    <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                  </button>
+                  <!-- Time Display -->
+                  <span id="time-display" class="font-mono text-[11px] text-slate-400">00:00 / 00:00</span>
+                </div>
+
+                <div class="flex items-center gap-3">
+                  <!-- Subtitles Toggle & Size Controls -->
+                  <div class="flex items-center gap-1 bg-white/10 rounded-lg p-0.5">
+                    <button onclick="toggleSubtitles()" id="cc-btn" class="px-2 py-0.5 rounded font-bold border border-brand-500 bg-brand-500/20 text-brand-300 hover:bg-brand-500/30 transition text-[11px]" title="Toggle Subtitles">
+                      CC ON
+                    </button>
+                    <div class="hidden sm:flex items-center gap-0.5 pl-1 border-l border-white/20">
+                      <button onclick="setSubtitleSize('sm')" id="sub-btn-sm" class="sub-size-chip px-1.5 py-0.5 rounded text-[10px] font-mono hover:bg-white/20 text-slate-300" title="Small (14px)">SM</button>
+                      <button onclick="setSubtitleSize('md')" id="sub-btn-md" class="sub-size-chip px-1.5 py-0.5 rounded text-[10px] font-mono hover:bg-white/20 text-slate-300 bg-white/20 font-bold" title="Medium (18px)">MD</button>
+                      <button onclick="setSubtitleSize('lg')" id="sub-btn-lg" class="sub-size-chip px-1.5 py-0.5 rounded text-[10px] font-mono hover:bg-white/20 text-slate-300" title="Large (24px)">LG</button>
+                      <button onclick="setSubtitleSize('xl')" id="sub-btn-xl" class="sub-size-chip px-1.5 py-0.5 rounded text-[10px] font-mono hover:bg-white/20 text-slate-300" title="Extra Large (30px)">XL</button>
+                    </div>
+                  </div>
+
+                  <!-- Speed Preset Chips -->
+                  <div class="flex items-center gap-1 bg-white/10 rounded-lg p-0.5">
+                    <button onclick="setSpeed(1.0)" class="speed-chip px-1.5 py-0.5 rounded text-[11px] font-mono hover:bg-white/20">1x</button>
+                    <button onclick="setSpeed(1.25)" class="speed-chip px-1.5 py-0.5 rounded text-[11px] font-mono hover:bg-white/20">1.25x</button>
+                    <button onclick="setSpeed(1.5)" class="speed-chip px-1.5 py-0.5 rounded text-[11px] font-mono hover:bg-white/20 active-speed">1.5x</button>
+                    <button onclick="setSpeed(1.75)" class="speed-chip px-1.5 py-0.5 rounded text-[11px] font-mono hover:bg-white/20">1.75x</button>
+                    <button onclick="setSpeed(2.0)" class="speed-chip px-1.5 py-0.5 rounded text-[11px] font-mono hover:bg-white/20">2x</button>
+                    <button onclick="setSpeed(2.5)" class="speed-chip px-1.5 py-0.5 rounded text-[11px] font-mono hover:bg-white/20">2.5x</button>
+                  </div>
+
+                  <!-- Fullscreen -->
+                  <button onclick="toggleFullscreen()" class="p-1 rounded-lg hover:bg-white/20 text-slate-300 hover:text-white" title="Fullscreen">
+                    <i data-lucide="maximize" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- SPEED MODIFIER SLIDER & PLAYBACK TOOLS -->
+          <div class="p-3.5 rounded-xl bg-dark-900 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2.5">
+              <i data-lucide="gauge" class="w-4 h-4 text-accent-400"></i>
+              <span class="font-semibold text-slate-300">Speed:</span>
+              <input type="range" id="speed-slider" min="0.5" max="3.0" step="0.05" value="1.0" oninput="onSpeedSlider(this.value)" class="w-24 sm:w-32 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-accent-400">
+              <span id="speed-value" class="font-mono font-bold text-accent-300 w-11">1.00x</span>
+            </div>
+
+            <!-- Subtitle Color Themes -->
+            <div class="flex items-center gap-2 bg-dark-950 px-2.5 py-1 rounded-lg border border-slate-800">
+              <span class="text-slate-400 font-medium">Subtitles:</span>
+              <button onclick="setSubtitleContrast('amber')" class="w-4 h-4 rounded-full bg-amber-400 border border-slate-700 hover:scale-110 transition shadow" title="Amber Yellow Subtitles"></button>
+              <button onclick="setSubtitleContrast('white')" class="w-4 h-4 rounded-full bg-white border border-slate-700 hover:scale-110 transition shadow" title="Pure White Subtitles"></button>
+              <button onclick="setSubtitleContrast('neon')" class="w-4 h-4 rounded-full bg-green-400 border border-slate-700 hover:scale-110 transition shadow" title="Neon Green Subtitles"></button>
+            </div>
+
+            <!-- Auto-save timestamp indicator -->
+            <div class="flex items-center gap-1.5 text-slate-400">
+              <i data-lucide="check-circle" class="w-3.5 h-3.5 text-brand-400"></i>
+              <span id="save-status">Auto-saved</span>
+            </div>
+          </div>
+
+          <!-- ADHD 5-10 MINUTE FOCUS SPRINTS (MICRO-QUESTS) -->
+          <div id="focus-sprint-container" class="p-4 sm:p-5 rounded-2xl bg-dark-900 border border-slate-800 space-y-3 sprint-active-card">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-brand-500/20 border border-brand-500/40 text-brand-400 font-mono text-xs font-bold flex items-center gap-1">
+                  <span>⚡</span>
+                  <span id="sprint-badge-num">Sprint 1 of 8</span>
+                </span>
+                <span class="text-xs px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 font-mono font-medium" id="sprint-duration-tag">~8.5 mins</span>
+                <span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono font-medium">+30 XP</span>
+              </div>
+
+              <!-- Countdown Timer & Auto-Pause Toggle -->
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-dark-950 border border-slate-700 text-sky-300 font-mono font-bold text-xs sprint-timer-pulse">
+                  <i data-lucide="timer" class="w-3.5 h-3.5 text-sky-400"></i>
+                  <span id="sprint-countdown">08:30 remaining</span>
+                </div>
+                <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-300" title="Automatically pause at end of sprint to avoid cognitive overload and grant XP">
+                  <input type="checkbox" id="sprint-autopause" checked class="sr-only peer">
+                  <div class="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-accent-500 relative"></div>
+                  <span>Auto-Pause</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- SPRINT TITLE & OBJECTIVE -->
+            <div>
+              <h3 id="sprint-current-title" class="text-base font-bold text-white flex items-center gap-2">
+                <span>Welcome & Course Orientation</span>
+              </h3>
+              <p id="sprint-current-objective" class="text-xs text-slate-300 mt-1 leading-relaxed">
+                Understand IE 214 grading structure, remote learning policies, and course expectations.
+              </p>
+            </div>
+
+            <!-- SPRINT PROGRESS BAR & BOUNDS -->
+            <div class="space-y-1.5 pt-1">
+              <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <span id="sprint-time-bounds">00:00 - 08:30</span>
+                <span id="sprint-progress-percent">0% Completed</span>
+              </div>
+              <div class="w-full h-2.5 bg-dark-950 rounded-full overflow-hidden border border-slate-800 relative">
+                <div id="sprint-progress-bar" class="h-full bg-gradient-to-r from-accent-500 via-sky-400 to-brand-400 transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- SPRINT ACTION BUTTONS -->
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+              <div class="flex items-center gap-2">
+                <button onclick="prevSprint()" class="px-2.5 py-1 rounded-lg bg-dark-950 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 hover:text-white flex items-center gap-1 transition">
+                  <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                  <span>Prev Sprint</span>
+                </button>
+                <button onclick="nextSprint()" class="px-2.5 py-1 rounded-lg bg-dark-950 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 hover:text-white flex items-center gap-1 transition">
+                  <span>Next Sprint</span>
+                  <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+
+              <!-- Toggle Sprints Drawer -->
+              <button onclick="toggleSprintDrawer()" class="text-xs text-accent-400 hover:text-accent-300 font-semibold flex items-center gap-1">
+                <span id="sprint-drawer-toggle-text">All Sprints (8)</span>
+                <i data-lucide="chevron-down" id="sprint-drawer-chevron" class="w-3.5 h-3.5 transition-transform duration-200"></i>
+              </button>
+            </div>
+
+            <!-- SPRINT DRAWER LIST (COLLAPSIBLE) -->
+            <div id="sprint-drawer" class="hidden pt-3 border-t border-slate-800 space-y-1.5 max-h-60 overflow-y-auto scrollbar-thin">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+
+          <!-- LECTURE DETAILS & KNOWLEDGE CHECKPOINT -->
+          <div class="p-5 rounded-2xl bg-dark-900 border border-slate-800 space-y-4">
+            <div>
+              <div class="flex items-center gap-2 text-xs text-brand-400 font-semibold mb-1">
+                <span id="lec-week-tag">Week 1</span>
+                <span>•</span>
+                <span id="lec-syllabus-topic">OR Methodology</span>
+              </div>
+              <h2 id="lec-title" class="text-xl font-bold text-white">Operations Research Foundations & Methodology</h2>
+              <p id="lec-desc" class="text-sm text-slate-400 mt-1 leading-relaxed">
+                Loading lecture syllabus notes...
+              </p>
+            </div>
+
+            <!-- KEY CONCEPTS ACCORDION -->
+            <div class="space-y-2 pt-2 border-t border-slate-800">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4 text-yellow-400"></i>
+                Key Concepts from this Lecture
+              </h4>
+              <div id="key-concepts-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- EMBEDDED KNOWLEDGE CHECKPOINT (POP QUIZ) -->
+            <div id="quiz-card" class="mt-4 p-4 rounded-xl bg-dark-950 border border-brand-500/30 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-brand-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="help-circle" class="w-4 h-4"></i>
+                  Checkpoint Challenge (+50 XP)
+                </span>
+                <span id="quiz-step" class="text-[11px] font-mono text-slate-400">Question 1 of 3</span>
+              </div>
+              <p id="quiz-question" class="text-sm font-medium text-slate-200">
+                Loading quiz question...
+              </p>
+              <div id="quiz-options" class="space-y-2">
+                <!-- Options rendered here -->
+              </div>
+              <div id="quiz-feedback" class="hidden text-xs p-2.5 rounded-lg"></div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: SYNCHRONIZED SLIDES & TRANSCRIPT (5 cols on lg) -->
+        <div class="lg:col-span-5 space-y-4 flex flex-col h-[750px]">
+
+          <!-- PANEL TABS (SLIDES vs TRANSCRIPT) -->
+          <div class="flex items-center justify-between p-1 bg-dark-900 rounded-xl border border-slate-800">
+            <div class="flex items-center gap-1">
+              <button onclick="switchSideTab('slides')" id="sidetab-btn-slides" class="side-tab-btn active px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
+                <i data-lucide="presentation" class="w-3.5 h-3.5"></i>
+                <span>Matched Slides</span>
+              </button>
+              <button onclick="switchSideTab('transcript')" id="sidetab-btn-transcript" class="side-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white">
+                <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                <span>Transcript</span>
+              </button>
+            </div>
+
+            <!-- Auto-Sync Toggle -->
+            <label class="flex items-center gap-2 cursor-pointer text-[11px] text-slate-300 pr-2">
+              <input type="checkbox" id="auto-sync-checkbox" checked onchange="toggleAutoSync(this.checked)" class="sr-only peer">
+              <div class="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brand-500 relative"></div>
+              <span>Sync to Video</span>
+            </label>
+          </div>
+
+          <!-- TAB CONTENT 1: SYNCHRONIZED SLIDES -->
+          <div id="sidecontent-slides" class="flex-1 flex flex-col bg-dark-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl p-4 space-y-3">
+            
+            <!-- Slide Deck Selector & Controls -->
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <select id="slide-deck-selector" onchange="onSlideDeckChange(this.value)" class="bg-dark-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-brand-500 max-w-[190px] truncate">
+                  <!-- Dynamically populated -->
+                </select>
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                <!-- Pin to Video Button -->
+                <button onclick="pinCurrentSlideToVideo()" class="px-2 py-1 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 border border-brand-500/40 text-brand-300 text-[11px] font-semibold flex items-center gap-1 transition" title="Calibrate & sync this slide to current video playback time">
+                  <i data-lucide="pin" class="w-3 h-3 text-brand-400"></i>
+                  <span>Pin to Video</span>
+                </button>
+                <div class="flex items-center gap-0.5">
+                  <button onclick="prevSlide()" class="p-1 rounded-lg bg-dark-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs" title="Previous Slide">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                  </button>
+                  <span id="slide-page-indicator" class="text-xs font-mono font-bold text-brand-400 px-1.5">1 / 11</span>
+                  <button onclick="nextSlide()" class="p-1 rounded-lg bg-dark-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs" title="Next Slide">
+                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- HIGH-RES SLIDE PREVIEW CONTAINER -->
+            <div class="flex-1 bg-dark-950 rounded-xl border border-slate-800 relative flex items-center justify-center overflow-hidden p-2 group">
+              <img id="current-slide-img" src="" alt="Slide Preview" class="max-w-full max-h-full object-contain rounded shadow-lg transition-transform duration-200">
+              
+              <!-- Full view overlay button -->
+              <button onclick="openFullSlideModal()" class="absolute top-3 right-3 p-1.5 rounded-lg bg-black/70 hover:bg-black text-white text-xs opacity-0 group-hover:opacity-100 transition shadow" title="Zoom Slide">
+                <i data-lucide="maximize-2" class="w-4 h-4"></i>
+              </button>
+
+              <div id="slide-loading-spinner" class="absolute inset-0 bg-dark-950/80 flex items-center justify-center hidden">
+                <div class="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            </div>
+
+            <!-- SLIDE TOPIC MARKER CALLOUT WITH SYNC ACTIONS -->
+            <div id="slide-topic-banner" class="p-2.5 rounded-xl bg-dark-950 border border-slate-800 text-xs flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 truncate">
+                <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse flex-shrink-0"></span>
+                <span id="slide-topic-name" class="font-semibold text-slate-200 truncate">Slide 1: Overview</span>
+              </div>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <span id="slide-timestamp-badge" class="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-dark-900 border border-slate-800">00:00</span>
+                <button onclick="jumpVideoToCurrentSlide()" class="text-brand-400 hover:text-brand-300 font-medium text-[11px] flex items-center gap-1" title="Jump video to when this slide appears">
+                  <span>Jump</span>
+                  <i data-lucide="external-link" class="w-3 h-3"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- SLIDE THUMBNAIL RAIL -->
+            <div id="slide-thumbnail-rail" class="flex items-center gap-2 overflow-x-auto py-1 scrollbar-thin">
+              <!-- Thumbnails populated here -->
+            </div>
+
+          </div>
+
+          <!-- TAB CONTENT 2: INTERACTIVE TRANSCRIPT -->
+          <div id="sidecontent-transcript" class="hidden flex-1 flex flex-col bg-dark-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl p-4 space-y-3">
+            
+            <!-- SEARCH TRANSCRIPT BAR -->
+            <div class="relative">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-500"></i>
+              <input type="text" id="transcript-search" oninput="filterTranscript(this.value)" placeholder="Search transcript (e.g. simplex, basic, slack)..." class="w-full bg-dark-950 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+            </div>
+
+            <!-- CUES CONTAINER (CLICK-TO-SEEK & AUTO-SCROLL) -->
+            <div id="transcript-container" class="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+              <div class="text-center text-slate-500 py-12 text-xs">
+                Loading lecture transcript cues...
+              </div>
+            </div>
+
+            <!-- TRANSCRIPTION RUNNER BANNER (IF NO VTT EXISTS) -->
+            <div id="transcribe-action-box" class="hidden p-3 rounded-xl bg-brand-500/10 border border-brand-500/30 text-xs space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-brand-400 flex items-center gap-1.5">
+                  <i data-lucide="wand-2" class="w-4 h-4"></i>
+                  Whisper AI Transcription
+                </span>
+                <span id="transcribe-progress-badge" class="font-mono text-[10px] text-slate-400">Ready</span>
+              </div>
+              <p class="text-[11px] text-slate-400">
+                This lecture doesn't have subtitles yet. Transcribe speech into synchronized WebVTT in the background.
+              </p>
+              <button onclick="triggerLectureTranscription()" id="transcribe-now-btn" class="w-full py-1.5 px-3 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold transition flex items-center justify-center gap-2">
+                <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                <span>Transcribe Lecture Now</span>
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ==================== VIEW 2: CAMPAIGN MAP ==================== -->
+    <section id="view-campaign" class="hidden space-y-6">
+      <div class="p-6 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-black text-white flex items-center gap-2">
+              <span>🗺️</span>
+              <span>The Optimization Odyssey (IE 214 Campaign)</span>
+            </h2>
+            <p class="text-sm text-slate-400 mt-1">
+              Conquer weekly operations research challenges, master LP formulations, and advance to Grand Optimization Sage.
+            </p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400 uppercase font-semibold">Total Progress</span>
+            <div class="text-lg font-mono font-bold text-brand-400" id="campaign-progress-pct">0% Complete</div>
+          </div>
+        </div>
+
+        <!-- QUEST ROADMAP NODES -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4" id="campaign-nodes-grid">
+          <!-- Dynamically populated from MODULES_DATA -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 3: OR ARCADE (MINIGAMES) ==================== -->
+    <section id="view-arcade" class="hidden space-y-6">
+      
+      <!-- ARCADE NAV -->
+      <div class="flex flex-wrap items-center gap-2 p-2 bg-dark-900 rounded-xl border border-slate-800">
+        <button onclick="switchArcadeGame('simplex')" id="arcade-btn-simplex" class="arcade-subnav-btn active px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2">
+          <span>🎯</span>
+          <span>Simplex Pivot Master</span>
+        </button>
+        <button onclick="switchArcadeGame('graphical')" id="arcade-btn-graphical" class="arcade-subnav-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white">
+          <span>📈</span>
+          <span>2D Graphical LP Arena</span>
+        </button>
+        <button onclick="switchArcadeGame('formulation')" id="arcade-btn-formulation" class="arcade-subnav-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white">
+          <span>🤖</span>
+          <span>LP Formulation Forge</span>
+        </button>
+        <button onclick="switchArcadeGame('detective')" id="arcade-btn-detective" class="arcade-subnav-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-white">
+          <span>🔍</span>
+          <span>Tableau Detective</span>
+        </button>
+      </div>
+
+      <!-- GAME 1: SIMPLEX PIVOT MASTER -->
+      <div id="game-simplex" class="p-6 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="text-brand-400">Simplex Pivot Master</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-mono">+150 XP</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Select the entering variable (most negative in Row 0), check the minimum ratio test for leaving variable, and execute the pivot!
+            </p>
+          </div>
+          <button onclick="resetSimplexGame()" class="px-3 py-1.5 rounded-lg bg-dark-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition">
+            Reset Game
+          </button>
+        </div>
+
+        <div class="p-3 rounded-xl bg-dark-950 border border-slate-800 text-xs font-mono text-slate-300 whitespace-pre-line" id="simplex-problem-text">
+          Maximize Z = 3x1 + 5x2
+          subject to:
+          x1 <= 4
+          2x2 <= 12
+          3x1 + 2x2 <= 18
+          x1, x2 >= 0
+        </div>
+
+        <!-- TABLEAU RENDER AREA -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse font-mono" id="simplex-tableau-table">
+            <!-- Rendered by JS -->
+          </table>
+        </div>
+
+        <!-- INTERACTION CONTROLS -->
+        <div class="p-4 rounded-xl bg-dark-950 border border-slate-800 space-y-3" id="simplex-interactive-box">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="space-y-1">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Step 1: Choose Entering Variable</span>
+              <div class="flex items-center gap-2" id="entering-var-buttons">
+                <!-- Buttons for x1, x2, s1, etc. -->
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Step 2: Choose Leaving Variable (Min Ratio)</span>
+              <div class="flex items-center gap-2" id="leaving-var-buttons">
+                <!-- Buttons for s1, s2, s3 -->
+              </div>
+            </div>
+
+            <button onclick="executeSimplexPivot()" id="pivot-action-btn" disabled class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs transition shadow-lg shadow-brand-500/20">
+              Execute Pivot ⚡
+            </button>
+          </div>
+
+          <div id="simplex-feedback" class="text-xs p-3 rounded-lg hidden"></div>
+        </div>
+      </div>
+
+      <!-- GAME 2: 2D GRAPHICAL LP ARENA -->
+      <div id="game-graphical" class="hidden p-6 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="text-accent-400">2D Graphical LP Arena</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-accent-500/20 text-accent-300 font-mono">+150 XP</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Explore the feasible region in Euclidean 2D space. Drag the isoprofit objective slider to find the optimal extreme corner point!
+            </p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400">Current Objective:</span>
+            <div class="text-sm font-mono font-bold text-brand-400" id="graphical-z-val">Z = 0</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- CANVAS (8 cols) -->
+          <div class="lg:col-span-8 bg-dark-950 rounded-2xl border border-slate-800 p-4 flex items-center justify-center relative">
+            <canvas id="graphical-canvas" width="550" height="420" class="max-w-full rounded-xl bg-slate-950 shadow-inner"></canvas>
+          </div>
+
+          <!-- CONTROLS & POINTS (4 cols) -->
+          <div class="lg:col-span-4 space-y-4">
+            <div class="p-4 rounded-xl bg-dark-950 border border-slate-800 space-y-3">
+              <label class="block text-xs font-semibold text-slate-300">
+                Slide Objective Value (Z):
+              </label>
+              <input type="range" id="graphical-slider" min="0" max="45" step="0.5" value="10" oninput="onGraphicalSlider(this.value)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-500">
+              <div class="flex justify-between text-[11px] font-mono text-slate-400">
+                <span>Z = 0</span>
+                <span>Z = 45</span>
+              </div>
+            </div>
+
+            <!-- EXTREME POINTS TABLE -->
+            <div class="p-4 rounded-xl bg-dark-950 border border-slate-800 space-y-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Extreme Corner Points</span>
+              <div class="space-y-1.5 text-xs font-mono" id="extreme-points-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <button onclick="checkGraphicalSolution()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-accent-600 text-white font-bold text-xs shadow-lg hover:opacity-95 transition">
+              Verify Optimal Corner Point 🎯
+            </button>
+            <div id="graphical-feedback" class="hidden text-xs p-3 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GAME 3: LP FORMULATION FORGE -->
+      <div id="game-formulation" class="hidden p-6 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="text-purple-400">LP Formulation Forge</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">+200 XP</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Formulate real IE 214 scenarios (AMR Autonomous Mobile Robot & Coal-Fired Power Plant).
+            </p>
+          </div>
+          <select id="formulation-scenario-select" onchange="onFormulationScenarioSelect(this.value)" class="bg-dark-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+            <option value="amr_layout">Autonomous Mobile Robot (AMR)</option>
+            <option value="coal_plant">Coal-Fired Power Plant</option>
+          </select>
+        </div>
+
+        <div id="formulation-scenario-body" class="space-y-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- GAME 4: TABLEAU DETECTIVE -->
+      <div id="game-detective" class="hidden p-6 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="text-yellow-400">Tableau Detective: Exercise 3 Puzzle</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300 font-mono">+250 XP</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">
+              From Prof. Lorenzo's Midterm Exercise 3. Deduce redacted coefficients A, B, C, D, E, F, G using simplex relationships!
+            </p>
+          </div>
+        </div>
+
+        <div id="detective-body" class="space-y-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==================== VIEW 4: TROPHY ROOM & PROFILE ==================== -->
+    <section id="view-trophy" class="hidden space-y-6">
+      
+      <!-- PLAYER CARD -->
+      <div class="p-6 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        
+        <div class="flex items-center gap-4">
+          <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-brand-600 via-accent-500 to-purple-600 p-0.5 shadow-xl">
+            <div class="w-full h-full bg-dark-950 rounded-2xl flex items-center justify-center text-3xl" id="profile-avatar">
+              🌱
+            </div>
+          </div>
+          <div>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Player Rank</span>
+            <h2 class="text-2xl font-black text-white" id="profile-rank-title">OR Novice</h2>
+            <p class="text-xs text-brand-400 font-mono mt-0.5" id="profile-level-badge">Level 1 Student</p>
+          </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="grid grid-cols-3 gap-3 text-center border-y md:border-y-0 md:border-x border-slate-800 py-4 md:py-0">
+          <div>
+            <div class="text-xl font-bold font-mono text-white" id="profile-total-xp">0</div>
+            <div class="text-[11px] text-slate-400">Total XP</div>
+          </div>
+          <div>
+            <div class="text-xl font-bold font-mono text-white" id="profile-watch-time">0m</div>
+            <div class="text-[11px] text-slate-400">Lecture Time</div>
+          </div>
+          <div>
+            <div class="text-xl font-bold font-mono text-white" id="profile-streak-count">1</div>
+            <div class="text-[11px] text-slate-400">Day Streak</div>
+          </div>
+        </div>
+
+        <!-- SKILLS RADAR CONTAINER -->
+        <div class="h-44 flex items-center justify-center">
+          <canvas id="skillsRadarChart"></canvas>
+        </div>
+
+      </div>
+
+      <!-- BADGES COLLECTION -->
+      <div class="p-6 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl space-y-4">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <span>🏆</span>
+          <span>Badges & Honors Collection</span>
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="badges-grid">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==================== VIEW 5: LECTURE MANAGER & WHISPER ==================== -->
+    <section id="view-manager" class="hidden space-y-6">
+      <div class="p-6 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl space-y-6">
+        
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="folder-sync" class="w-5 h-5 text-accent-400"></i>
+              <span>Lecture Downloader & AI Transcriber</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">
+              As you download new lecture recordings, this scanner automatically registers videos, slide decks, and problem sets.
+            </p>
+          </div>
+          <button onclick="refreshWorkspaceScanner()" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition flex items-center gap-2 shadow">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            <span>Rescan Directory</span>
+          </button>
+        </div>
+
+        <!-- DETECTED MODULES TABLE -->
+        <div class="space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Detected Lecture Sessions</h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400 font-mono">
+                  <th class="py-2.5 px-3">Session Folder</th>
+                  <th class="py-2.5 px-3">Topic / Syllabus</th>
+                  <th class="py-2.5 px-3">Video Files</th>
+                  <th class="py-2.5 px-3">Transcript Status</th>
+                  <th class="py-2.5 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="manager-modules-tbody" class="divide-y divide-slate-800/60">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SLIDES & EXERCISES INVENTORY -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-800">
+          <div class="space-y-2">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <i data-lucide="file" class="w-3.5 h-3.5 text-brand-400"></i>
+              Available Slide Decks (PDF)
+            </h4>
+            <div id="manager-slides-list" class="space-y-1.5 text-xs text-slate-300">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <i data-lucide="file-check" class="w-3.5 h-3.5 text-accent-400"></i>
+              Exercise Problem Sets (PDF)
+            </h4>
+            <div id="manager-exercises-list" class="space-y-1.5 text-xs text-slate-300">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FULLSCREEN SLIDE MODAL -->
+  <div id="slide-modal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center">
+      <button onclick="closeFullSlideModal()" class="absolute -top-10 right-0 text-white hover:text-red-400 font-bold text-sm flex items-center gap-1">
+        <span>Close</span>
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+      <img id="modal-slide-img" src="" class="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl">
+    </div>
+  </div>
+
+  <!-- LEVEL UP / BADGE UNLOCKED CELEBRATION MODAL -->
+  <div id="celebration-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-dark-900 border border-brand-500 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl animate-bounce-once">
+      <div class="text-5xl" id="celebration-icon">🎉</div>
+      <h3 class="text-xl font-black text-white" id="celebration-title">Level Up!</h3>
+      <p class="text-xs text-slate-300" id="celebration-desc">You unlocked a new rank!</p>
+      <button onclick="closeCelebrationModal()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-accent-600 text-white font-bold text-xs shadow-lg">
+        Claim Reward ✨
+      </button>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

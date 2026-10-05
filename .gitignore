@@ -1,0 +1,35 @@
+# ─── Video Recordings (too large for git) ───────────────────────────────────
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# ─── VTT Transcripts (auto-generated, large text files) ─────────────────────
+*.vtt
+
+# ─── PyInstaller Build Artifacts ────────────────────────────────────────────
+build/
+dist/
+*.spec
+
+# ─── Python Cache ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# ─── App Runtime Data (user-specific, browser cache, logs) ───────────────────
+app/data/
+
+# ─── Downloaded Zips ─────────────────────────────────────────────────────────
+*.zip
+
+# ─── OS / Editor Junk ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.vscode/
+
+# Browser extension files
+*.crx

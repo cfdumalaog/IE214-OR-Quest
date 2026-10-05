@@ -1,0 +1,175 @@
+/* styles.css - Cyberpunk / Dark OR Optimization Aesthetic */
+
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+code, pre, .font-mono {
+  font-family: 'Fira Code', monospace;
+}
+
+/* Custom Scrollbars */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Navigation button styling */
+.nav-btn.active {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(14, 165, 233, 0.2));
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.15);
+}
+
+.side-tab-btn.active {
+  background: #1e293b;
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.arcade-subnav-btn.active {
+  background: #1e293b;
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+/* Speed Chip Active */
+.speed-chip.active-speed {
+  background: #22c55e !important;
+  color: #052e16 !important;
+  font-weight: 700;
+}
+
+/* Transcript Cues */
+.transcript-cue {
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+.transcript-cue:hover {
+  background: rgba(30, 41, 59, 0.6);
+}
+.transcript-cue.active-cue {
+  background: rgba(34, 197, 94, 0.12);
+  border-left-color: #22c55e;
+  box-shadow: inset 0 0 10px rgba(34, 197, 94, 0.05);
+}
+.transcript-cue.active-cue .cue-text {
+  color: #f0fdf4;
+  font-weight: 500;
+}
+
+/* Slide Thumbnail item */
+.slide-thumb-card {
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+.slide-thumb-card.active-thumb {
+  border-color: #22c55e;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+}
+
+/* Tableau Interactive Grid */
+.tableau-cell {
+  padding: 6px 10px;
+  border: 1px solid #334155;
+  text-align: right;
+  transition: background 0.15s ease;
+}
+.tableau-header {
+  padding: 8px 10px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  font-weight: 700;
+  text-align: right;
+}
+.col-entering {
+  background: rgba(56, 189, 248, 0.2) !important;
+  border-color: #0ea5e9 !important;
+}
+.row-leaving {
+  background: rgba(244, 63, 94, 0.2) !important;
+  border-color: #f43f5e !important;
+}
+.pivot-element {
+  background: rgba(34, 197, 94, 0.35) !important;
+  border: 2px solid #22c55e !important;
+  font-weight: 800 !important;
+  color: #4ade80 !important;
+}
+
+/* Celebration bounce animation */
+@keyframes bounceOnce {
+  0% { transform: scale(0.85); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-bounce-once {
+  animation: bounceOnce 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Subtitle Font Sizes */
+.sub-size-sm { font-size: 0.875rem !important; line-height: 1.35 !important; } /* 14px */
+.sub-size-md { font-size: 1.125rem !important; line-height: 1.4 !important; }  /* 18px */
+.sub-size-lg { font-size: 1.5rem !important; line-height: 1.4 !important; }   /* 24px */
+.sub-size-xl { font-size: 1.875rem !important; line-height: 1.35 !important; } /* 30px */
+
+/* Subtitle Contrast Styles */
+.sub-contrast-amber {
+  color: #fde047 !important;
+  background: rgba(0, 0, 0, 0.88) !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+}
+.sub-contrast-white {
+  color: #ffffff !important;
+  background: rgba(0, 0, 0, 0.92) !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95);
+}
+.sub-contrast-neon {
+  color: #4ade80 !important;
+  background: rgba(5, 20, 10, 0.92) !important;
+  border: 1px solid rgba(74, 222, 128, 0.35) !important;
+  box-shadow: 0 0 15px rgba(74, 222, 128, 0.2) !important;
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+}
+
+/* ADHD Focus Sprint Styling */
+.sprint-active-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 4px 20px -2px rgba(14, 165, 233, 0.15);
+}
+.sprint-timer-pulse {
+  animation: timerPulse 2s infinite ease-in-out;
+}
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; transform: scale(0.99); }
+}
+.sprint-item {
+  transition: all 0.2s ease;
+}
+.sprint-item:hover {
+  background: rgba(30, 41, 59, 0.8);
+}
+.sprint-item.current-sprint {
+  background: rgba(56, 189, 248, 0.15);
+  border-left: 3px solid #38bdf8;
+}
+.sprint-item.completed-sprint {
+  background: rgba(34, 197, 94, 0.1);
+  border-left: 3px solid #22c55e;
+}
+
