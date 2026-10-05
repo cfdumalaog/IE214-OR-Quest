@@ -13,7 +13,8 @@ import fitz  # PyMuPDF
 
 from app.backend.course_data import (
     MODULES_DATA, MINIGAMES_DATA, BADGES_DATA, RANKS_DATA,
-    save_custom_marker, load_custom_markers
+    EXAM_INTEL_DATA, save_custom_marker, load_custom_markers,
+    load_user_notes, save_user_note, delete_user_note
 )
 from app.backend.scanner import scan_workspace
 from app.backend.transcriber import (
@@ -303,6 +304,36 @@ async def record_action(request: Request):
     payload = body.get("payload", {})
     res = record_player_action(action, payload)
     return res
+
+
+@app.get("/api/exam-intel")
+def get_exam_intel(module_id: Optional[str] = None):
+    """Retrieve professor's exam intel and student notes, optionally filtered by module."""
+    user_notes = load_user_notes()
+    intel = EXAM_INTEL_DATA
+    if module_id:
+        intel = [item for item in intel if item["module_id"] == module_id]
+        user_notes = [n for n in user_notes if n.get("module_id") == module_id]
+    return {
+        "intel": intel,
+        "all_count": len(EXAM_INTEL_DATA),
+        "user_notes": user_notes
+    }
+
+
+@app.post("/api/user-notes")
+async def create_user_note(request: Request):
+    """Create or update a student exam note."""
+    body = await request.json()
+    note = save_user_note(body)
+    return {"success": True, "note": note}
+
+
+@app.delete("/api/user-notes/{note_id}")
+def remove_user_note(note_id: str):
+    """Delete a student exam note."""
+    res = delete_user_note(note_id)
+    return {"success": res}
 
 
 # Mount frontend static files

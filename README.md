@@ -1,4 +1,4 @@
-﻿# 🎮 OR-Quest — Gamified IE 214 Learning Hub
+# 🎮 OR-Quest — Gamified IE 214 Learning Hub
 
 > **IE 214 Introductory Operations Research** · UP Diliman  
 > Prof. Lowell Lorenzo · MEngAI Program
@@ -35,6 +35,15 @@ A gamified desktop learning companion that turns recorded Zoom lectures into an 
 | **Quizzes** | Per-module multiple-choice quizzes with instant feedback |
 | **Mini-games** | Flash Cards and Quick Solve challenge modes |
 | **Streak Tracking** | Daily study streak counter |
+
+### 🎯 Exam Intel & Professor's Watchlist Notes
+- **Direct transcript mining** for professor's explicit exam warnings, midterm question types, and grading rules.
+- **Mandatory Simplex Tie-Breaking Rule**: Full documentation of Prof. Lorenzo's classroom rule (pick smaller index for entering and leaving ties to avoid deduction).
+- **Indicative Midterm Handouts**: Direct timestamps confirming past/midterm problems in `Exercises/`.
+- **Alternative Optima Convex Combination**: Format requirements for complete optimal solution sets ($x^* = \alpha x_B + (1-\alpha) x_C$).
+- **Decision Variable Grading Rubric**: 2 mandatory attributes (Unit of Measurement + Decision Action).
+- **Click-to-Seek**: Click any timestamp badge to jump video directly to Prof. Lorenzo discussing that exam point.
+- **Personal Student Notes**: Add, save, and timestamp personal reminders directly into the app.
 
 ### 🖥️ Desktop App
 - Launches as a standalone Windows desktop app (no browser tab, no setup)

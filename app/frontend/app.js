@@ -33,7 +33,14 @@ let state = {
   // ADHD Focus Sprints
   currentSprintIndex: 0,
   sprintCompletedThisRun: false,
-  completedSprints: new Set(JSON.parse(localStorage.getItem('or_quest_completed_sprints') || '[]'))
+  completedSprints: new Set(JSON.parse(localStorage.getItem('or_quest_completed_sprints') || '[]')),
+  // Exam Intel & Notes
+  examIntel: [],
+  userNotes: [],
+  examNotesScope: 'active',
+  examCategoryFilter: 'all',
+  examSearchQuery: '',
+  capturedNoteTime: 0
 };
 
 // Web Audio API Sound Synthesizer
@@ -150,15 +157,34 @@ function switchTab(tabId) {
 
 function switchSideTab(tabId) {
   playSfx('click');
-  ['slides', 'transcript'].forEach(t => {
+  ['slides', 'transcript', 'examnotes'].forEach(t => {
     const content = document.getElementById(`sidecontent-${t}`);
     const btn = document.getElementById(`sidetab-btn-${t}`);
     if (content) content.classList.toggle('hidden', t !== tabId);
     if (btn) {
       btn.classList.toggle('active', t === tabId);
-      btn.classList.toggle('text-slate-400', t !== tabId);
+      if (t === tabId) {
+        btn.classList.remove('text-slate-400');
+        if (t === 'examnotes') {
+          btn.classList.add('text-amber-300');
+        } else {
+          btn.classList.add('text-white');
+        }
+      } else {
+        if (t === 'examnotes') {
+          btn.classList.remove('text-amber-300');
+          btn.classList.add('text-amber-400');
+        } else {
+          btn.classList.remove('text-white');
+          btn.classList.add('text-slate-400');
+        }
+      }
     }
   });
+
+  if (tabId === 'examnotes') {
+    renderExamNotes();
+  }
 }
 
 function switchArcadeGame(gameKey) {
@@ -185,6 +211,7 @@ async function initApp() {
     initSubtitlePreferences();
     await loadProgress();
     await loadMinigames();
+    await loadExamIntel();
     await loadWorkspaceLectures();
   } catch (err) {
     console.error("Initialization error:", err);
@@ -404,6 +431,14 @@ async function loadModule(moduleId) {
     checkTranscribeStatus(mod.folder);
   } else {
     transcribeBox.classList.add("hidden");
+  }
+
+  // Update Exam Alert Banner & Counts
+  updateLectureExamBanner(mod);
+  updateExamCounts();
+  const examContent = document.getElementById("sidecontent-examnotes");
+  if (examContent && !examContent.classList.contains("hidden")) {
+    renderExamNotes();
   }
 }
 
@@ -1087,6 +1122,373 @@ function filterTranscript(query) {
   }
   const filtered = state.cues.filter(c => c.text.toLowerCase().includes(q) || (c.speaker && c.speaker.toLowerCase().includes(q)));
   renderTranscriptCues(filtered);
+}
+
+// ----------------- EXAM INTEL & PROFESSOR'S NOTES CONTROLLER -----------------
+async function loadExamIntel() {
+  try {
+    const res = await fetch("/api/exam-intel");
+    const data = await res.json();
+    state.examIntel = data.intel || [];
+    
+    // Merge backend user notes with any local cached notes
+    const localNotes = JSON.parse(localStorage.getItem("or_quest_user_notes") || "[]");
+    const backendNotes = data.user_notes || [];
+    const notesMap = new Map();
+    backendNotes.forEach(n => notesMap.set(n.id, n));
+    localNotes.forEach(n => { if (!notesMap.has(n.id)) notesMap.set(n.id, n); });
+    state.userNotes = Array.from(notesMap.values());
+    
+    updateExamCounts();
+  } catch (e) {
+    console.error("Error loading exam intel:", e);
+  }
+}
+
+function updateLectureExamBanner(mod) {
+  const banner = document.getElementById("lec-exam-alert-banner");
+  if (!banner || !mod) return;
+  const modIntel = state.examIntel.filter(i => i.module_id === mod.id);
+  if (modIntel.length > 0) {
+    banner.classList.remove("hidden");
+    const titleEl = document.getElementById("lec-exam-alert-title");
+    const descEl = document.getElementById("lec-exam-alert-desc");
+    const topItem = modIntel.find(i => i.severity === 'critical') || modIntel[0];
+    if (titleEl) {
+      titleEl.innerText = `${modIntel.length} Exam Alert${modIntel.length > 1 ? 's' : ''} in this Lecture! (${topItem.title})`;
+    }
+    if (descEl) {
+      descEl.innerText = `Prof. Lorenzo: "${topItem.quote.slice(0, 110)}..."`;
+    }
+  } else {
+    banner.classList.add("hidden");
+  }
+}
+
+function updateExamCounts() {
+  const curModId = state.currentModule ? state.currentModule.id : null;
+  const activeIntelCount = curModId ? state.examIntel.filter(i => i.module_id === curModId).length : 0;
+  const activeUserCount = curModId ? state.userNotes.filter(n => n.module_id === curModId).length : 0;
+  const totalActive = activeIntelCount + activeUserCount;
+  const totalAll = state.examIntel.length + state.userNotes.length;
+
+  const badge = document.getElementById("exam-notes-badge");
+  if (badge) badge.innerText = totalAll;
+
+  const scopeActiveEl = document.getElementById("scope-active-count");
+  if (scopeActiveEl) scopeActiveEl.innerText = totalActive;
+
+  const scopeAllEl = document.getElementById("scope-all-count");
+  if (scopeAllEl) scopeAllEl.innerText = totalAll;
+}
+
+function setExamNotesScope(scope) {
+  playSfx('click');
+  state.examNotesScope = scope;
+  const btnActive = document.getElementById("scope-btn-active");
+  const btnAll = document.getElementById("scope-btn-all");
+
+  if (scope === 'active') {
+    if (btnActive) btnActive.className = "px-2.5 py-1 rounded-md font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 transition";
+    if (btnAll) btnAll.className = "px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition";
+  } else {
+    if (btnAll) btnAll.className = "px-2.5 py-1 rounded-md font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 transition";
+    if (btnActive) btnActive.className = "px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition";
+  }
+  renderExamNotes();
+}
+
+function filterExamNotes(query) {
+  state.examSearchQuery = query;
+  renderExamNotes();
+}
+
+function onExamCategoryFilter(category) {
+  playSfx('click');
+  state.examCategoryFilter = category;
+  renderExamNotes();
+}
+
+function openExamTabForCurrentLecture() {
+  playSfx('click');
+  switchSideTab('examnotes');
+  setExamNotesScope('active');
+  const panel = document.getElementById("sidecontent-examnotes");
+  if (panel && window.innerWidth < 1024) {
+    panel.scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+function renderExamNotes() {
+  const container = document.getElementById("examnotes-container");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const currentModId = state.currentModule ? state.currentModule.id : null;
+  const scope = state.examNotesScope;
+  const cat = state.examCategoryFilter;
+  const q = state.examSearchQuery.toLowerCase().trim();
+
+  let items = [];
+
+  // 1. Gather professor exam intel
+  if (cat !== 'user') {
+    state.examIntel.forEach(item => {
+      items.push({ ...item, is_user_note: false });
+    });
+  }
+
+  // 2. Gather student personal notes
+  if (cat === 'all' || cat === 'user') {
+    state.userNotes.forEach(un => {
+      items.push({
+        id: un.id,
+        module_id: un.module_id,
+        folder: un.folder || (state.modules.find(m => m.id === un.module_id)?.folder || "IE 214"),
+        lecture_date: un.lecture_date || un.created_at || "Personal Note",
+        time_sec: un.time_sec || 0,
+        time_str: formatTime(un.time_sec || 0),
+        category: 'user',
+        category_label: 'Student Note',
+        severity: 'user',
+        title: un.title,
+        speaker: 'You (Personal Note)',
+        quote: un.note,
+        summary: 'Custom student reminder saved in OR-Quest.',
+        action_rule: null,
+        created_at: un.created_at,
+        is_user_note: true
+      });
+    });
+  }
+
+  // 3. Filter by scope (active vs all)
+  if (scope === 'active' && currentModId) {
+    items = items.filter(it => it.module_id === currentModId);
+  }
+
+  // 4. Filter by category
+  if (cat !== 'all') {
+    items = items.filter(it => it.category === cat);
+  }
+
+  // 5. Filter by search query
+  if (q) {
+    items = items.filter(it => 
+      (it.title && it.title.toLowerCase().includes(q)) ||
+      (it.quote && it.quote.toLowerCase().includes(q)) ||
+      (it.summary && it.summary.toLowerCase().includes(q)) ||
+      (it.action_rule && it.action_rule.toLowerCase().includes(q)) ||
+      (it.category_label && it.category_label.toLowerCase().includes(q)) ||
+      (it.folder && it.folder.toLowerCase().includes(q))
+    );
+  }
+
+  // Sort critical warnings to the top
+  const severityRank = { 'critical': 1, 'high': 2, 'gold': 2, 'warning': 3, 'user': 4, 'info': 5, 'theory': 6 };
+  items.sort((a, b) => (severityRank[a.severity] || 99) - (severityRank[b.severity] || 99));
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="text-center text-slate-500 py-12 text-xs space-y-2">
+        <i data-lucide="bookmark-x" class="w-8 h-8 mx-auto opacity-50"></i>
+        <p class="font-medium text-slate-400">No exam notes found matching your filter.</p>
+        <p class="text-[11px] text-slate-500">Switch scope to "All Lectures" or add a new personal note!</p>
+      </div>`;
+    lucide.createIcons();
+    return;
+  }
+
+  items.forEach(it => {
+    const card = document.createElement("div");
+    const sevClass = `card-${it.severity || 'info'}`;
+    card.className = `exam-intel-card ${sevClass} p-3.5 rounded-xl bg-dark-950/90 text-xs space-y-2.5`;
+
+    let badgeColor = 'bg-blue-500/15 text-blue-300 border-blue-500/30';
+    let icon = '📌';
+    if (it.severity === 'critical') {
+      badgeColor = 'bg-red-500/15 text-red-300 border-red-500/30';
+      icon = '🚨';
+    } else if (it.severity === 'high' || it.severity === 'gold') {
+      badgeColor = 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+      icon = '🎯';
+    } else if (it.severity === 'warning') {
+      badgeColor = 'bg-orange-500/15 text-orange-300 border-orange-500/30';
+      icon = '⚠️';
+    } else if (it.is_user_note) {
+      badgeColor = 'bg-purple-500/15 text-purple-300 border-purple-500/30';
+      icon = '📝';
+    }
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor} flex items-center gap-1">
+            <span>${icon}</span>
+            <span>${it.category_label || 'Exam Intel'}</span>
+          </span>
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-dark-900 border border-slate-800 text-slate-400">
+            ${it.folder || 'Lecture'}
+          </span>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <button onclick="seekToExamTimestamp('${it.module_id}', '${it.folder}', ${it.time_sec})" class="px-2 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[11px] font-mono font-bold flex items-center gap-1 transition" title="Seek video to this exact moment">
+            <span>▶</span>
+            <span>${it.time_str || formatTime(it.time_sec)}</span>
+          </button>
+          ${it.is_user_note ? `
+            <button onclick="deleteStudentNote('${it.id}')" class="p-1 rounded text-slate-500 hover:text-red-400 transition" title="Delete note">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+
+      <div>
+        <h4 class="font-bold text-white text-sm leading-snug">${it.title}</h4>
+        <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">${it.summary || ''}</p>
+      </div>
+
+      <!-- QUOTE BOX -->
+      <div class="exam-quote-box p-2.5 rounded-lg text-slate-300 text-[11px] leading-relaxed">
+        <div class="text-[10px] font-semibold text-slate-400 not-italic mb-1 flex items-center gap-1">
+          <span>🗣️</span>
+          <span>${it.speaker || 'Professor Lowell Lorenzo'}:</span>
+        </div>
+        "${it.quote}"
+      </div>
+
+      <!-- ACTIONABLE RULE / FORMULA BOX -->
+      ${it.action_rule ? `
+        <div class="exam-rule-box p-2.5 rounded-lg text-amber-200/90 text-[11px] leading-relaxed">
+          <div class="font-bold text-amber-300 text-[10px] uppercase tracking-wider flex items-center gap-1 mb-0.5">
+            <span>🎯</span>
+            <span>Exam Action Rule & Strategy:</span>
+          </div>
+          <div>${it.action_rule}</div>
+        </div>
+      ` : ''}
+    `;
+
+    container.appendChild(card);
+  });
+
+  lucide.createIcons();
+}
+
+async function seekToExamTimestamp(moduleId, folder, timeSec) {
+  playSfx('click');
+  const video = document.getElementById("main-video");
+
+  // Switch lecture if needed
+  if (!state.currentModule || state.currentModule.id !== moduleId) {
+    const targetMod = state.modules.find(m => m.id === moduleId || m.folder === folder);
+    if (targetMod) {
+      document.getElementById("lecture-selector").value = targetMod.id;
+      await loadModule(targetMod.id);
+      triggerToast(`Switched to ${targetMod.folder} for this exam hint!`);
+    }
+  }
+
+  // Seek and play
+  video.currentTime = timeSec;
+  video.play().catch(e => console.warn("Video seek play error:", e));
+
+  // Visual flash
+  const flash = document.getElementById('play-flash');
+  const flashIcon = document.getElementById('play-flash-icon');
+  if (flash && flashIcon) {
+    flashIcon.textContent = '🎯';
+    flash.classList.remove('opacity-0');
+    clearTimeout(flash._timer);
+    flash._timer = setTimeout(() => flash.classList.add('opacity-0'), 800);
+  }
+
+  triggerToast(`🎯 Jumped to ${formatTime(timeSec)}: Professor Lorenzo discussing exam topic`);
+  sendPlayerAction("exam_intel_seek", { module: moduleId, time_sec: timeSec });
+}
+
+function toggleAddNoteDrawer() {
+  playSfx('click');
+  const drawer = document.getElementById("add-student-note-drawer");
+  if (!drawer) return;
+  const isHidden = drawer.classList.contains("hidden");
+  drawer.classList.toggle("hidden");
+  if (isHidden) {
+    captureCurrentVideoTimeToNote();
+    const titleInput = document.getElementById("student-note-title");
+    if (titleInput) titleInput.focus();
+  }
+}
+
+function captureCurrentVideoTimeToNote() {
+  const cur = Math.floor(video.currentTime || 0);
+  state.capturedNoteTime = cur;
+  const display = document.getElementById("add-note-time-display");
+  if (display) display.innerText = formatTime(cur);
+}
+
+async function submitStudentNote() {
+  playSfx('click');
+  const titleInput = document.getElementById("student-note-title");
+  const bodyInput = document.getElementById("student-note-body");
+  const title = titleInput.value.trim();
+  const body = bodyInput.value.trim();
+
+  if (!title && !body) {
+    triggerToast("Please write a title or note content first!");
+    return;
+  }
+
+  const curMod = state.currentModule;
+  const payload = {
+    module_id: curMod ? curMod.id : "general",
+    folder: curMod ? curMod.folder : "IE 214",
+    time_sec: state.capturedNoteTime || Math.floor(video.currentTime || 0),
+    title: title || "Exam Note",
+    note: body || title
+  };
+
+  try {
+    const res = await fetch("/api/user-notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      state.userNotes.unshift(data.note);
+      localStorage.setItem("or_quest_user_notes", JSON.stringify(state.userNotes));
+      titleInput.value = "";
+      bodyInput.value = "";
+      toggleAddNoteDrawer();
+      updateExamCounts();
+      renderExamNotes();
+      playSfx('correct');
+      triggerToast("✨ Personal note saved successfully!");
+      sendPlayerAction("add_exam_note", { id: data.note.id });
+    }
+  } catch (err) {
+    console.error("Save note error:", err);
+  }
+}
+
+async function deleteStudentNote(noteId) {
+  playSfx('click');
+  try {
+    const res = await fetch(`/api/user-notes/${encodeURIComponent(noteId)}`, { method: "DELETE" });
+    const data = await res.json();
+    if (data.success) {
+      state.userNotes = state.userNotes.filter(n => n.id !== noteId);
+      localStorage.setItem("or_quest_user_notes", JSON.stringify(state.userNotes));
+      updateExamCounts();
+      renderExamNotes();
+      triggerToast("Note deleted.");
+    }
+  } catch (err) {
+    console.error("Delete note error:", err);
+  }
 }
 
 // ----------------- WHISPER BACKGROUND TRANSCRIPTION -----------------

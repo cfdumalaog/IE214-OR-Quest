@@ -7,6 +7,7 @@ import os
 import json
 
 CUSTOM_MARKERS_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "custom_slide_markers.json")
+USER_NOTES_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "user_exam_notes.json")
 
 def load_custom_markers():
     if os.path.exists(CUSTOM_MARKERS_FILE):
@@ -20,7 +21,6 @@ def load_custom_markers():
 def save_custom_marker(module_id: str, slide_deck: str, slide_page: int, time_sec: int):
     data = load_custom_markers()
     mod_data = data.setdefault(module_id, [])
-    # Check if marker for this page already exists
     existing = next((m for m in mod_data if m["slide"] == slide_page and m.get("deck", slide_deck) == slide_deck), None)
     if existing:
         existing["time_sec"] = time_sec
@@ -30,6 +30,41 @@ def save_custom_marker(module_id: str, slide_deck: str, slide_page: int, time_se
     os.makedirs(os.path.dirname(CUSTOM_MARKERS_FILE), exist_ok=True)
     with open(CUSTOM_MARKERS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+def load_user_notes():
+    if os.path.exists(USER_NOTES_FILE):
+        try:
+            with open(USER_NOTES_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return []
+
+def save_user_note(note: dict):
+    import time
+    notes = load_user_notes()
+    if not note.get("id"):
+        note["id"] = f"un_{int(time.time()*1000)}"
+    if not note.get("created_at"):
+        note["created_at"] = time.strftime("%b %d, %Y %I:%M %p")
+    # Replace if exists, else prepend
+    existing_idx = next((i for i, n in enumerate(notes) if n.get("id") == note["id"]), None)
+    if existing_idx is not None:
+        notes[existing_idx] = note
+    else:
+        notes.insert(0, note)
+    os.makedirs(os.path.dirname(USER_NOTES_FILE), exist_ok=True)
+    with open(USER_NOTES_FILE, "w", encoding="utf-8") as f:
+        json.dump(notes, f, indent=2)
+    return note
+
+def delete_user_note(note_id: str):
+    notes = load_user_notes()
+    notes = [n for n in notes if n.get("id") != note_id]
+    os.makedirs(os.path.dirname(USER_NOTES_FILE), exist_ok=True)
+    with open(USER_NOTES_FILE, "w", encoding="utf-8") as f:
+        json.dump(notes, f, indent=2)
+    return True
 
 MODULES_DATA = [
     {
@@ -668,3 +703,198 @@ MINIGAMES_DATA = {
         }
     }
 }
+
+EXAM_INTEL_DATA = [
+    {
+        "id": "intel_sep14_tie_break",
+        "module_id": "module_sep14",
+        "folder": "September 14",
+        "lecture_date": "September 14, 2026",
+        "time_sec": 4880,
+        "time_str": "01:21:20",
+        "category": "rules",
+        "category_label": "Mandatory Tie-Breaking Rule",
+        "severity": "critical",
+        "title": "Simplex Tie-Breaking: Pick Smaller Variable Index for Entering & Leaving",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "So sa exam, kung nari pinili mo si x4 kahit na pwede rin siya, hindi siya ikokonsider ng correct yung solution mo. It's just a local rule that we will be adopting so that I will not have difficulty grading papers with multiple solutions. Clear to everyone? So even for entering variable, kung nari ito minus 9 yan, minus 9 yan, ano yung entering variable natin? X1 kasi smaller index... So kung pinili nyo ang x2, hindi tama yung solution nyo kahit na theoretically puwede rin siya... Using our local rule, the leaving variable will be x3, hindi x4.",
+        "summary": "Prof. Lorenzo enforces a strict local tie-breaking rule for both entering and leaving variables so all students take an identical solution path and avoid multiple solutions during paper grading.",
+        "action_rule": "1) Entering Variable Tie: Pick the non-basic variable with the smaller subscript index (e.g., choose x1 over x2). 2) Leaving Variable Tie (Min Ratio Test): Pick the basic variable with the smaller subscript index (e.g., choose x3 over x4). Choosing the other variable will be marked INCORRECT in the exam!"
+    },
+    {
+        "id": "intel_sep14_midterm_indicative",
+        "module_id": "module_sep14",
+        "folder": "September 14",
+        "lecture_date": "September 14, 2026",
+        "time_sec": 329,
+        "time_str": "00:05:29",
+        "category": "scope",
+        "category_label": "Midterm Scope Confirmation",
+        "severity": "high",
+        "title": "Handout Exercises Are Indicative & Drawn From Midterm Exams",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "I'm telling you, these exercises are very indicative of what you will expect in the midterm. Kaya I want you to do these exercises kasi at least pag ginawa ninyo itong exercises na ito, alam ninyo more or less kung ano yung gagawin ninyo... you know, how you will do the problems that are assigned or given in the midterm exam.",
+        "summary": "Prof. Lorenzo explicitly confirms that the problems in the Exercises folder (Exercise 3 LP, IE 214 Exercises Midterm, and Midterm Additional) are past exam problems and mirror the exact structure of the midterm exam.",
+        "action_rule": "Prioritize solving every problem in Exercises/ ('IE 214 Exercises Midterm.pdf', 'Exercise 3 LP.pdf', 'Midterm Additional.pdf'). They are directly indicative of what will appear in your exam."
+    },
+    {
+        "id": "intel_sep14_convex_combination",
+        "module_id": "module_sep14",
+        "folder": "September 14",
+        "lecture_date": "September 14, 2026",
+        "time_sec": 6255,
+        "time_str": "01:44:15",
+        "category": "format",
+        "category_label": "Exam Question Format",
+        "severity": "critical",
+        "title": "Alternative Optima: Complete Solution MUST Use Convex Combination",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Now, if I ask you the question in the exam, 'can you please give me the complete optimal solution of this LP?'... If you answer just point B and point C, is that complete? No! ... The complete optimal solution is all points in the line segment BC. And if I ask for a mathematical expression: you must use the convex combination of the two vectors: x = t * B + (1 - t) * C, where 0 <= t <= 1.",
+        "summary": "When alternative optima exist, identifying only the two optimal corner points is incomplete and loses points because all points along the connecting line segment are also optimal.",
+        "action_rule": "Always express the complete optimal solution set as a convex combination: x* = α x_B + (1 - α) x_C for 0 ≤ α ≤ 1. Never just list the two extreme points alone."
+    },
+    {
+        "id": "intel_aug24_variable_definition",
+        "module_id": "module_aug24",
+        "folder": "August 24",
+        "lecture_date": "August 24, 2026",
+        "time_sec": 1050,
+        "time_str": "00:17:30",
+        "category": "grading",
+        "category_label": "Grading Rubric Trap",
+        "severity": "critical",
+        "title": "Decision Variables: 2 Mandatory Attributes (UOM & Decision Action)",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Will you get full points for that if that's the way you define your decision variables? I will tell you it will not get full points. The reason why it will not get full points is because there are two attributes that I'm looking for whenever you define your decision variables: 1) The unit of measure (UOM), and 2) The decision involved... If you just define it as x1, x2, you will not get full points. Most probably you'll get around 6 or 7 out of 10 points. Just to give you an idea of how I will be grading you.",
+        "summary": "Prof. Lorenzo strictly deducts 30% to 40% of points on variable definitions if both the unit of measurement and specific decision action are not explicitly written.",
+        "action_rule": "In every LP formulation, state: 1) Unit of Measurement (e.g., meters, tons/day, hours), and 2) Exact decision action (e.g., 'x1 = x-coordinate in meters where AMR home base will be placed'). Never just write 'x1 = coordinate'."
+    },
+    {
+        "id": "intel_aug24_simplex_iterations",
+        "module_id": "module_aug24",
+        "folder": "August 24",
+        "lecture_date": "August 24, 2026",
+        "time_sec": 7550,
+        "time_str": "02:05:50",
+        "category": "scope",
+        "category_label": "Exam Calculation Scope",
+        "severity": "info",
+        "title": "Simplex in Exam: Maximum 1 Iteration Expected (Calculations are Minimal)",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Sabi mo, sa exam ba, marami bang calculations na gagawin... You are not computers, okay? I'm not testing you how good you are in multiplying, dividing, or doing whatever operation. So in the exam, expect, as I've told you, Aldrin, there will be very minimal calculations. So if there, in the simplex algorithm, if there's any calculation, you will be expected to be only doing ONE ITERATION just to demonstrate to me that you know how to do that iteration... That's what you should expect in an exam.",
+        "summary": "The professor emphasizes that exams test conceptual comprehension, not computer-like numerical crunching. You will only be asked for at most 1 pivot iteration.",
+        "action_rule": "Do not waste time practicing 5-iteration manual arithmetic. Master the mechanics of 1 clean iteration: selecting the pivot column, minimum ratio test for pivot row, and row-reducing to update the basis."
+    },
+    {
+        "id": "intel_aug17_formulation_timelimit",
+        "module_id": "module_aug17",
+        "folder": "August 17",
+        "lecture_date": "August 17, 2026",
+        "time_sec": 9330,
+        "time_str": "02:35:30",
+        "category": "scope",
+        "category_label": "Midterm Exam Scope",
+        "severity": "high",
+        "title": "Midterm Guaranteed Question: LP Formulation Within 2-Hour Limit",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "And in the midterm exam, I will be asking you to formulate a linear programming problem. A linear program... in your exam, you only have a two hour exam time period. The level of difficulty will be adjusted according to the time that is given to you.",
+        "summary": "A comprehensive real-world LP formulation problem is guaranteed on the midterm. Problem complexity will be calibrated to the strict 2-hour examination window.",
+        "action_rule": "Train on translating word problems into LP equations within 20-30 minutes. Focus on: 1) Clear variable definitions, 2) Technological constraints, 3) Capacity upper/lower bounds, 4) Non-negativity."
+    },
+    {
+        "id": "intel_aug17_no_llm",
+        "module_id": "module_aug17",
+        "folder": "August 17",
+        "lecture_date": "August 17, 2026",
+        "time_sec": 9690,
+        "time_str": "02:41:30",
+        "category": "policy",
+        "category_label": "Exam Policy Warning",
+        "severity": "warning",
+        "title": "Exam Condition: Zero LLM / Solver Access—Must Formulate Independently",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Because in the exam you will not have the LLM with you. When you answer the problem that I will give you in the exam there is no LLM there to help you. So do not be overly dependent on it. Help make it a tool to supplement the learnings that were given to you in this class.",
+        "summary": "Students are cautioned against relying on AI tools for problem solving during review, as the in-person/proctored exam requires formulating models on paper without aids.",
+        "action_rule": "Practice solving formulation exercises without ChatGPT or Excel Solver open. Test whether you can identify indices, parameters, and constraints independently."
+    },
+    {
+        "id": "intel_aug17_gauss_jordan_minimal",
+        "module_id": "module_aug17",
+        "folder": "August 17",
+        "lecture_date": "August 17, 2026",
+        "time_sec": 9768,
+        "time_str": "02:42:48",
+        "category": "scope",
+        "category_label": "Exam Calculation Scope",
+        "severity": "info",
+        "title": "Gauss-Jordan in Exam: Very Minimal Calculations, No Large Inversions",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Hypothetical question: Yung Gauss Jordan, gagawin po ba yun sa exam kasi napakahaba po? ... The calculations done in my exam are very minimal... Aldwin, you'll do very minimal, but you will do calculations, but very minimal.",
+        "summary": "Students asked if long Gauss-Jordan reduction is required on exams. Prof. Lorenzo confirmed arithmetic will be very minimal.",
+        "action_rule": "Understand how Gauss-Jordan relates to standard canonical form and tableau updates (multiplying by B^-1), but don't fear tedious manual 4x4 matrix inversions on paper."
+    },
+    {
+        "id": "intel_aug17_midterm_date",
+        "module_id": "module_aug17",
+        "folder": "August 17",
+        "lecture_date": "August 17, 2026",
+        "time_sec": 10068,
+        "time_str": "02:47:48",
+        "category": "schedule",
+        "category_label": "Important Date",
+        "severity": "info",
+        "title": "Midterm Exam Schedule: October 10 Target Date",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Sir regarding sa midterm, sa October 10... Okay lang sir ako na po sa original na schedule. Sure.",
+        "summary": "The midterm exam schedule discussed during class with students with conflict schedules.",
+        "action_rule": "Keep midterm target date in mind and complete all problem sets ahead of time."
+    },
+    {
+        "id": "intel_sep14_infeasibility_trap",
+        "module_id": "module_sep14",
+        "folder": "September 14",
+        "lecture_date": "September 14, 2026",
+        "time_sec": 3692,
+        "time_str": "01:01:32",
+        "category": "traps",
+        "category_label": "Common Pitfall / Trap",
+        "severity": "critical",
+        "title": "Feasibility Trap: Basic Solutions with Negative Values Are NOT BFS",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Notice when we solve for x2, we get x2 = 4 - 5(4/3) = -8/3 < 0. Since x2 is negative, this violates non-negativity xj >= 0. Therefore, this is an infeasible basic solution and not a BFS!",
+        "summary": "A common exam error is setting n-m variables to 0, solving the system, and forgetting to verify xj >= 0 before calculating objective Z.",
+        "action_rule": "Always check non-negativity for every solved basic variable. If any xj < 0, explicitly declare the solution Infeasible / Not a BFS."
+    },
+    {
+        "id": "intel_sep7_penalty_bigm",
+        "module_id": "module_sep7",
+        "folder": "September 7",
+        "lecture_date": "September 7, 2026",
+        "time_sec": 3950,
+        "time_str": "01:05:50",
+        "category": "rules",
+        "category_label": "Formulation Technique",
+        "severity": "info",
+        "title": "Big-M Method: Penalty Assignment for >= and = Constraints",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "We will now introduce a penalty... This is what you call we're introducing a penalty, Big-M... yung penalty naman wala ng penalty pag standard na.",
+        "summary": "When converting LP to standard form, artificial variables added to >= or = constraints must receive a huge penalty coefficient (-M for Max, +M for Min) in row 0.",
+        "action_rule": "Remember Big-M signs: Subtract M * A_i for Maximization; Add M * A_i for Minimization. Row 0 must be priced out before starting iteration 1."
+    },
+    {
+        "id": "intel_sep7_origin_geometry",
+        "module_id": "module_sep7",
+        "folder": "September 7",
+        "lecture_date": "September 7, 2026",
+        "time_sec": 44,
+        "time_str": "00:00:44",
+        "category": "theory",
+        "category_label": "Core Simplex Concept",
+        "severity": "info",
+        "title": "Simplex Geometric Trajectory: Origin Start & Adjacent Extreme Points",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Examining axis directions, the simplex algorithm is verifying whether the origin is optimal. So that means the simplex algorithm always starts with the origin... it will move to an adjacent or next door feasible solution.",
+        "summary": "Conceptual exam question: Simplex initializes at the origin (when all slacks are basic), evaluates adjacent edge directions via reduced costs (zj - cj), and hops from vertex to adjacent vertex.",
+        "action_rule": "If asked about the geometric nature of the simplex method, state that it evaluates adjacent extreme points (vertices) along boundary edges until no edge direction yields an improvement in Z."
+    }
+]

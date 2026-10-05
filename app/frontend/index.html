@@ -364,6 +364,21 @@
               </p>
             </div>
 
+            <!-- EXAM WATCHLIST ALERT CALLOUT -->
+            <div id="lec-exam-alert-banner" class="hidden p-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border border-amber-500/40 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5 truncate">
+                <span class="text-xl">🎯</span>
+                <div class="truncate">
+                  <div class="font-bold text-amber-300 text-xs truncate" id="lec-exam-alert-title">Exam Intel & Warnings in this Session!</div>
+                  <div class="text-[11px] text-amber-200/80 truncate" id="lec-exam-alert-desc">Prof. Lorenzo gives specific exam instructions and rules in this lecture.</div>
+                </div>
+              </div>
+              <button onclick="openExamTabForCurrentLecture()" class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition shadow-md flex items-center gap-1">
+                <span>View Intel</span>
+                <span>➔</span>
+              </button>
+            </div>
+
             <!-- KEY CONCEPTS ACCORDION -->
             <div class="space-y-2 pt-2 border-t border-slate-800">
               <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
@@ -400,24 +415,29 @@
         <!-- RIGHT COLUMN: SYNCHRONIZED SLIDES & TRANSCRIPT (5 cols on lg) -->
         <div class="lg:col-span-5 space-y-4 flex flex-col h-[750px]">
 
-          <!-- PANEL TABS (SLIDES vs TRANSCRIPT) -->
+          <!-- PANEL TABS (SLIDES vs TRANSCRIPT vs EXAM INTEL) -->
           <div class="flex items-center justify-between p-1 bg-dark-900 rounded-xl border border-slate-800">
             <div class="flex items-center gap-1">
-              <button onclick="switchSideTab('slides')" id="sidetab-btn-slides" class="side-tab-btn active px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
+              <button onclick="switchSideTab('slides')" id="sidetab-btn-slides" class="side-tab-btn active px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
                 <i data-lucide="presentation" class="w-3.5 h-3.5"></i>
-                <span>Matched Slides</span>
+                <span class="hidden sm:inline">Slides</span>
               </button>
-              <button onclick="switchSideTab('transcript')" id="sidetab-btn-transcript" class="side-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white">
+              <button onclick="switchSideTab('transcript')" id="sidetab-btn-transcript" class="side-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white">
                 <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-                <span>Transcript</span>
+                <span class="hidden sm:inline">Transcript</span>
+              </button>
+              <button onclick="switchSideTab('examnotes')" id="sidetab-btn-examnotes" class="side-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-amber-400 hover:text-amber-300">
+                <span>🎯</span>
+                <span>Exam Intel</span>
+                <span id="exam-notes-badge" class="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold">12</span>
               </button>
             </div>
 
             <!-- Auto-Sync Toggle -->
-            <label class="flex items-center gap-2 cursor-pointer text-[11px] text-slate-300 pr-2">
+            <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-300 pr-2">
               <input type="checkbox" id="auto-sync-checkbox" checked onchange="toggleAutoSync(this.checked)" class="sr-only peer">
               <div class="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-brand-500 relative"></div>
-              <span>Sync to Video</span>
+              <span class="hidden sm:inline">Sync</span>
             </label>
           </div>
 
@@ -518,6 +538,72 @@
                 <i data-lucide="play" class="w-3.5 h-3.5"></i>
                 <span>Transcribe Lecture Now</span>
               </button>
+            </div>
+
+          </div>
+
+          <!-- TAB CONTENT 3: EXAM INTEL & PROFESSOR'S WATCHLIST NOTES -->
+          <div id="sidecontent-examnotes" class="hidden flex-1 flex flex-col bg-dark-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl p-4 space-y-3">
+            
+            <!-- HEADER & FILTER TOOLBAR -->
+            <div class="space-y-2.5 pb-2.5 border-b border-slate-800">
+              <div class="flex items-center justify-between gap-2">
+                <!-- Scope Buttons: Active Lecture vs All Lectures -->
+                <div class="flex items-center bg-dark-950 p-0.5 rounded-lg border border-slate-800 text-[11px]">
+                  <button id="scope-btn-active" onclick="setExamNotesScope('active')" class="px-2.5 py-1 rounded-md font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 transition">
+                    This Lecture (<span id="scope-active-count">0</span>)
+                  </button>
+                  <button id="scope-btn-all" onclick="setExamNotesScope('all')" class="px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition">
+                    All Lectures (<span id="scope-all-count">12</span>)
+                  </button>
+                </div>
+
+                <!-- Add Note Button -->
+                <button onclick="toggleAddNoteDrawer()" id="toggle-add-note-btn" class="px-2.5 py-1 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 border border-brand-500/40 text-brand-300 text-xs font-semibold flex items-center gap-1.5 transition">
+                  <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                  <span>Add Note</span>
+                </button>
+              </div>
+
+              <!-- Search Bar & Category Dropdown -->
+              <div class="flex items-center gap-2">
+                <div class="relative flex-1">
+                  <i data-lucide="search" class="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-500"></i>
+                  <input type="text" id="exam-notes-search" oninput="filterExamNotes(this.value)" placeholder="Search exam rules, keywords..." class="w-full bg-dark-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500">
+                </div>
+                <select id="exam-category-filter" onchange="onExamCategoryFilter(this.value)" class="bg-dark-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-amber-500">
+                  <option value="all">All Categories</option>
+                  <option value="rules">Mandatory Rules</option>
+                  <option value="grading">Grading Traps & Deductions</option>
+                  <option value="scope">Midterm Scope</option>
+                  <option value="format">Question Format</option>
+                  <option value="user">My Notes</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- ADD STUDENT NOTE DRAWER (COLLAPSIBLE) -->
+            <div id="add-student-note-drawer" class="hidden p-3 rounded-xl bg-dark-950 border border-brand-500/40 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-brand-400 flex items-center gap-1.5">
+                  <i data-lucide="pen-tool" class="w-3.5 h-3.5"></i>
+                  <span>New Student Exam Note</span>
+                </span>
+                <button onclick="captureCurrentVideoTimeToNote()" class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-brand-500/10 border border-brand-500/30 text-brand-300 hover:bg-brand-500/20" title="Set note to current video playback time">
+                  ⏱️ Current Video Time: <span id="add-note-time-display">00:00</span>
+                </button>
+              </div>
+              <input type="text" id="student-note-title" placeholder="Note Title (e.g. Remember to check non-negativity)" class="w-full bg-dark-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+              <textarea id="student-note-body" rows="2" placeholder="Write your personalized notes, exam reminders, or formula caveats..." class="w-full bg-dark-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 resize-none"></textarea>
+              <div class="flex items-center justify-end gap-2">
+                <button onclick="toggleAddNoteDrawer()" class="px-3 py-1 rounded-lg text-xs text-slate-400 hover:text-white">Cancel</button>
+                <button onclick="submitStudentNote()" class="px-3.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition">Save Note ✨</button>
+              </div>
+            </div>
+
+            <!-- EXAM INTEL CARDS LIST (CLICK-TO-SEEK & SYNC) -->
+            <div id="examnotes-container" class="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
+              <!-- Dynamically populated by JS -->
             </div>
 
           </div>
