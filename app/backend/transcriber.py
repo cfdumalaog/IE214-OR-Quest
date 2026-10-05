@@ -122,16 +122,26 @@ def transcribe_video_background(video_path: str, output_vtt_path: str, folder_na
                 }
 
             from faster_whisper import WhisperModel
-            model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
+            # Use multilingual 'small' model with int8 quantization and 8 threads
+            model = WhisperModel("small", device="cpu", compute_type="int8", cpu_threads=8)
 
             with _TASK_LOCK:
                 TRANSCRIPTION_TASKS[folder_name] = {
                     "status": "transcribing",
                     "progress": 35,
-                    "message": "Transcribing speech to text..."
+                    "message": "Transcribing speech to text (English + Filipino)..."
                 }
 
-            segments, info = model.transcribe(temp_audio, beam_size=1)
+            initial_prompt = (
+                "Operations Research and Engineering graduate lecture at University of the Philippines Diliman "
+                "in English and Filipino Tagalog, discussing linear programming, mathematical modeling, simplex, "
+                "and optimization."
+            )
+            segments, info = model.transcribe(
+                temp_audio,
+                beam_size=1,
+                initial_prompt=initial_prompt
+            )
             duration = info.duration or 1.0
 
             vtt_lines = ["WEBVTT\n\n"]
