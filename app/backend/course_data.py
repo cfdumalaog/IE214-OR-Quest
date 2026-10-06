@@ -66,6 +66,45 @@ def delete_user_note(note_id: str):
         json.dump(notes, f, indent=2)
     return True
 
+SESSION_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "session_state.json")
+
+DEFAULT_SESSION = {
+    "last_module_id": "module_aug10",
+    "last_tab": "theater",
+    "last_side_tab": "slides",
+    "playback_speed": 1.0,
+    "subtitles_enabled": True,
+    "subtitle_size": "md",
+    "subtitle_contrast": "amber",
+    "lecture_positions": {},
+    "lecture_streams": {},
+    "lecture_slides": {},
+    "completed_sprints": [],
+    "updated_at": None
+}
+
+def load_session_state() -> dict:
+    if os.path.exists(SESSION_FILE):
+        try:
+            with open(SESSION_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                merged = dict(DEFAULT_SESSION)
+                merged.update(data)
+                return merged
+        except Exception:
+            pass
+    return dict(DEFAULT_SESSION)
+
+def save_session_state(session_data: dict) -> dict:
+    import time
+    current = load_session_state()
+    current.update(session_data)
+    current["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
+    with open(SESSION_FILE, "w", encoding="utf-8") as f:
+        json.dump(current, f, indent=2)
+    return current
+
 MODULES_DATA = [
     {
         "id": "module_aug10",
@@ -493,6 +532,89 @@ MODULES_DATA = [
                 "explanation": "Strong Duality states that at optimality, the primal objective and dual objective are strictly equal: Max c^T x* = Min b^T y* = 120."
             }
         ]
+    },
+    {
+        "id": "module_oct5",
+        "folder": "October 5",
+        "date": "October 5, 2026",
+        "title": "Duality Applications, Sensitivity Analysis & Midterm Exam Review",
+        "subtitle": "Dual Bound Squeezing, Shadow Prices, RHS & Objective Ranging, Midterm Comprehensive Prep",
+        "syllabus_week": "Week 6",
+        "syllabus_topic": "Duality Applications, Sensitivity Analysis, Comprehensive Review",
+        "default_video": "GMT20261005-100352_Recording_1920x1128.mp4",
+        "default_slide_deck": "Set 8 Slides",
+        "duration_minutes": 114.6,
+        "xp_reward": 600,
+        "description": "Professor Lowell Lorenzo covers the profound power of Duality: how the Primal (lower bound) and Dual (upper bound) squeeze the optimal gap until Z* = W*. Discusses shadow prices as marginal resource values, allowable ranges for objective coefficients and right-hand side capacities, and conducts an extensive midterm review for the October 10 exam.",
+        "sprints": [
+            {"id": "oct5_s1", "number": 1, "title": "Welcome & Midterm Exam Overview", "start_sec": 0, "end_sec": 540, "duration_min": 9.0, "objective": "Midterm coverage, question formats, and review approach.", "slide_deck": "Set 8 Slides", "slide_page": 1},
+            {"id": "oct5_s2", "number": 2, "title": "Midterm Problem 1 Exercise Q&A", "start_sec": 540, "end_sec": 1140, "duration_min": 10.0, "objective": "Clarifying formulation nuances and decision variable definitions.", "slide_deck": "Set 8 Slides", "slide_page": 3},
+            {"id": "oct5_s3", "number": 3, "title": "Duality Bounds: The Squeezing Principle", "start_sec": 1140, "end_sec": 1740, "duration_min": 10.0, "objective": "How primal Z and dual W converge to optimality.", "slide_deck": "Set 8 Slides", "slide_page": 5},
+            {"id": "oct5_s4", "number": 4, "title": "Weak & Strong Duality in Problem Solving", "start_sec": 1740, "end_sec": 2340, "duration_min": 10.0, "objective": "Using dual bounds to verify optimality without running full simplex.", "slide_deck": "Set 8 Slides", "slide_page": 6},
+            {"id": "oct5_s5", "number": 5, "title": "Complementary Slackness Theorem", "start_sec": 2340, "end_sec": 2940, "duration_min": 10.0, "objective": "Relating primal slack variables to dual decision variables.", "slide_deck": "Set 8 Slides", "slide_page": 8},
+            {"id": "oct5_s6", "number": 6, "title": "Shadow Prices: Economic Meaning & Limits", "start_sec": 2940, "end_sec": 3540, "duration_min": 10.0, "objective": "Interpreting dual values as unit resource worth and validity ranges.", "slide_deck": "Set 8 Slides", "slide_page": 12},
+            {"id": "oct5_s7", "number": 7, "title": "Sensitivity Analysis: RHS Capacities (b_i)", "start_sec": 3540, "end_sec": 4140, "duration_min": 10.0, "objective": "Computing allowable increase and decrease before basis changes.", "slide_deck": "Set 8 Slides", "slide_page": 14},
+            {"id": "oct5_s8", "number": 8, "title": "Sensitivity Analysis: Objective Coefficients (c_j)", "start_sec": 4140, "end_sec": 4740, "duration_min": 10.0, "objective": "Allowable variations for basic vs non-basic variables.", "slide_deck": "Set 8 Slides", "slide_page": 16},
+            {"id": "oct5_s9", "number": 9, "title": "Dual Simplex Mechanics", "start_sec": 4740, "end_sec": 5340, "duration_min": 10.0, "objective": "Pivoting when RHS is infeasible but row 0 is optimal.", "slide_deck": "Set 8 Slides", "slide_page": 18},
+            {"id": "oct5_s10", "number": 10, "title": "Walkthrough of Additional Midterm Exercises", "start_sec": 5340, "end_sec": 5940, "duration_min": 10.0, "objective": "Formulation breakdown and common traps to avoid on the exam.", "slide_deck": "Set 8 Slides", "slide_page": 20},
+            {"id": "oct5_s11", "number": 11, "title": "Final Exam Advice & Study Strategy", "start_sec": 5940, "end_sec": 6874, "duration_min": 15.6, "objective": "Time management, showing complete units, and simplex tie-breakers.", "slide_deck": "Set 8 Slides", "slide_page": 22}
+        ],
+        "slide_markers": [
+            {"time_sec": 0, "deck": "Set 8 Slides", "slide": 1, "title": "Duality & Sensitivity Review"},
+            {"time_sec": 540, "deck": "Set 8 Slides", "slide": 3, "title": "Midterm Exercise 1 Formulation"},
+            {"time_sec": 1740, "deck": "Set 8 Slides", "slide": 6, "title": "Weak and Strong Duality"},
+            {"time_sec": 2340, "deck": "Set 8 Slides", "slide": 8, "title": "Complementary Slackness"},
+            {"time_sec": 2940, "deck": "Set 8 Slides", "slide": 12, "title": "Shadow Price Interpretation"},
+            {"time_sec": 3540, "deck": "Set 8 Slides", "slide": 14, "title": "RHS Sensitivity & Allowable Ranges"},
+            {"time_sec": 4140, "deck": "Set 8 Slides", "slide": 16, "title": "Objective Coefficient Sensitivity"},
+            {"time_sec": 4740, "deck": "Set 8 Slides", "slide": 18, "title": "Dual Simplex Mechanics"},
+            {"time_sec": 5940, "deck": "Set 8 Slides", "slide": 22, "title": "Midterm Study Guidelines & Final Tips"}
+        ],
+        "key_concepts": [
+            {"term": "Primal-Dual Bound Squeezing", "def": "The primal objective Z provides a lower bound, and the dual objective W provides an upper bound. The gap closes until Z* = W*."},
+            {"term": "Shadow Price (Dual Variable)", "def": "Rate of improvement in optimal objective Z per unit increase in RHS resource b_i, valid only within the allowable range."},
+            {"term": "Allowable Range", "def": "The range over which an objective coefficient or RHS value can change without changing the current optimal basis."},
+            {"term": "Complementary Slackness", "def": "At optimality, (x_j * dual_slack_j) = 0 and (y_i * primal_slack_i) = 0."},
+            {"term": "Dual Simplex Method", "def": "An algorithm that maintains optimality (Row 0 >= 0) while iterating toward primal feasibility (RHS >= 0), ideal for RHS changes."}
+        ],
+        "quizzes": [
+            {
+                "id": "q_oct5_1",
+                "question": "What is the relationship between the optimal primal objective Z* and the optimal dual objective W* according to Strong Duality?",
+                "options": [
+                    "Z* is always strictly greater than W*",
+                    "Z* = W* at the optimal solution",
+                    "Z* + W* = 0",
+                    "Z* is unrelated to W*"
+                ],
+                "answer_idx": 1,
+                "explanation": "Strong Duality states that at optimality, the primal maximum objective equals the dual minimum objective (Z* = W*)."
+            },
+            {
+                "id": "q_oct5_2",
+                "question": "When does multiplying a resource change Delta b_i by its Shadow Price y_i* fail to predict the new optimal objective value?",
+                "options": [
+                    "When the LP has only 2 variables",
+                    "When the change Delta b_i exceeds the allowable range and forces a change in the optimal basis",
+                    "When the objective is minimization",
+                    "When all slack variables are zero"
+                ],
+                "answer_idx": 1,
+                "explanation": "Shadow prices are valid only within the allowable range where the optimal basis B remains unchanged. Exceeding the range causes basic variables to turn negative, requiring a new basis."
+            },
+            {
+                "id": "q_oct5_3",
+                "question": "In which situation is the Dual Simplex method used instead of the standard Primal Simplex method?",
+                "options": [
+                    "When the solution is already primal-feasible but not optimal",
+                    "When row 0 satisfies optimality (all reduced costs >= 0 for max) but one or more RHS values are negative (infeasible)",
+                    "Only when using Big-M with artificial variables",
+                    "When the objective function is non-linear"
+                ],
+                "answer_idx": 1,
+                "explanation": "The Dual Simplex starts with dual-feasibility (optimality in Row 0) and pivots to eliminate negative RHS values, restoring primal feasibility."
+            }
+        ]
     }
 ]
 
@@ -896,5 +1018,53 @@ EXAM_INTEL_DATA = [
         "quote": "Examining axis directions, the simplex algorithm is verifying whether the origin is optimal. So that means the simplex algorithm always starts with the origin... it will move to an adjacent or next door feasible solution.",
         "summary": "Conceptual exam question: Simplex initializes at the origin (when all slacks are basic), evaluates adjacent edge directions via reduced costs (zj - cj), and hops from vertex to adjacent vertex.",
         "action_rule": "If asked about the geometric nature of the simplex method, state that it evaluates adjacent extreme points (vertices) along boundary edges until no edge direction yields an improvement in Z."
+    },
+    {
+        "id": "intel_oct5_duality_bounds",
+        "module_id": "module_oct5",
+        "folder": "October 5",
+        "lecture_date": "October 5, 2026",
+        "time_sec": 3550,
+        "time_str": "00:59:10",
+        "category": "theory",
+        "category_label": "Duality & Optimality Proof",
+        "severity": "critical",
+        "title": "Duality Squeezing: Primal Lower Bound & Dual Upper Bound Optimality Proof",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Ang purpose nito is to show the concept of weak and strong duality... Z is the lower bound, W is the upper bound. As you iterate they squeeze closer together. Kapag Z* = W*, that is the mathematical proof of optimality.",
+        "summary": "Prof. Lorenzo demonstrates that every primal feasible solution gives a lower bound Z <= Z*, and every dual feasible solution gives an upper bound W >= W*. When Z = W, the gap closes and optimality is proven.",
+        "action_rule": "On the midterm exam, if asked how to verify whether an LP candidate solution is globally optimal without running all simplex iterations, calculate its dual objective value W. If c^T x = b^T y and both are feasible, Strong Duality guarantees optimality."
+    },
+    {
+        "id": "intel_oct5_shadow_price_range",
+        "module_id": "module_oct5",
+        "folder": "October 5",
+        "lecture_date": "October 5, 2026",
+        "time_sec": 3930,
+        "time_str": "01:05:30",
+        "category": "traps",
+        "category_label": "Common Pitfall / Trap",
+        "severity": "critical",
+        "title": "Shadow Price Trap: Validity Only Holds Within the Allowable RHS Range",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Do not simply multiply the shadow price by Delta b_i without checking if it falls within the allowable increase or decrease. If the change pushes any basic variable below zero, the current basis is destroyed and you must pivot using Dual Simplex!",
+        "summary": "Exam pitfall: students often blindly calculate new Z = Z_old + (shadow_price * Delta b) even when the resource change exceeds the allowable range, rendering the basis infeasible.",
+        "action_rule": "Always compute B^-1 (b + Delta b) to confirm basic feasibility (all x_B >= 0) before using shadow prices to predict objective changes."
+    },
+    {
+        "id": "intel_oct5_midterm_preparation",
+        "module_id": "module_oct5",
+        "folder": "October 5",
+        "lecture_date": "October 5, 2026",
+        "time_sec": 5880,
+        "time_str": "01:38:00",
+        "category": "exam_prep",
+        "category_label": "Midterm Exam Master Strategy",
+        "severity": "warning",
+        "title": "Midterm Exam Directives: Precise Units in Definitions & Clean Simplex Pivoting",
+        "speaker": "Prof. Lowell Lorenzo",
+        "quote": "Review the formulation exercises thoroughly. Know your variable definitions with units and decisions. Master one iteration of simplex pivoting, including the tie-breaking rule. Understand duality relationships and sensitivity interpretations.",
+        "summary": "Prof. Lorenzo provides the exact roadmap for the October 10 Midterm: 1) Formulate problems with complete variable units, 2) Execute 1-2 simplex pivots manually with Bland's rule / tie-breaker, and 3) Interpret duality and sensitivity tableaus.",
+        "action_rule": "In every exam formulation, write: 'Let x_j = [quantity] of [item] per [time unit]'. When pivoting, explicitly write down the minimum ratio calculations to earn full partial credit."
     }
 ]

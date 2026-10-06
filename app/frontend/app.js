@@ -40,7 +40,25 @@ let state = {
   examNotesScope: 'active',
   examCategoryFilter: 'all',
   examSearchQuery: '',
-  capturedNoteTime: 0
+  capturedNoteTime: 0,
+  // Session Memory & Persistence
+  session: {
+    last_module_id: 'module_aug10',
+    last_tab: 'theater',
+    last_side_tab: 'slides',
+    playback_speed: 1.0,
+    subtitles_enabled: true,
+    subtitle_size: 'md',
+    subtitle_contrast: 'amber',
+    lecture_positions: {},
+    lecture_streams: {},
+    lecture_slides: {},
+    completed_sprints: []
+  },
+  // Knowledge Base state
+  knowledgeBaseData: [],
+  kbSelectedModule: 'all',
+  kbSearchQuery: ''
 };
 
 // Web Audio API Sound Synthesizer
@@ -132,7 +150,7 @@ function toggleAudioFx() {
 // ----------------- TAB SWITCHING -----------------
 function switchTab(tabId) {
   playSfx('click');
-  ['theater', 'campaign', 'arcade', 'trophy', 'manager'].forEach(t => {
+  ['theater', 'campaign', 'arcade', 'knowledgebase', 'trophy', 'manager'].forEach(t => {
     const view = document.getElementById(`view-${t}`);
     const btn = document.getElementById(`tab-btn-${t}`);
     if (view) view.classList.toggle('hidden', t !== tabId);
@@ -148,10 +166,17 @@ function switchTab(tabId) {
     }
   });
 
+  if (state.session) {
+    state.session.last_tab = tabId;
+    persistSession();
+  }
+
   if (tabId === 'trophy') {
     renderRadarChart();
   } else if (tabId === 'arcade') {
     renderGraphicalCanvas();
+  } else if (tabId === 'knowledgebase') {
+    loadKnowledgeBase();
   }
 }
 
@@ -182,6 +207,11 @@ function switchSideTab(tabId) {
     }
   });
 
+  if (state.session) {
+    state.session.last_side_tab = tabId;
+    persistSession();
+  }
+
   if (tabId === 'examnotes') {
     renderExamNotes();
   }
@@ -204,10 +234,163 @@ function switchArcadeGame(gameKey) {
   }
 }
 
+// ----------------- SESSION MEMORY & PERSISTENCE -----------------
+async function initSessionMemory() {
+  // 1. Read localStorage
+  try {
+    const local = localStorage.getItem('or_quest_session');
+    if (local) {
+      const parsed = JSON.parse(local);
+      state.session = { ...state.session, ...parsed };
+    }
+  } catch (e) {
+    console.warn("Local session read error:", e);
+  }
+
+  // 2. Fetch /api/session
+  try {
+    const res = await fetch("/api/session");
+    if (res.ok) {
+      const serverSession = await res.json();
+      state.session = {
+        ...state.session,
+        ...serverSession,
+        lecture_positions: {
+          ...(serverSession.lecture_positions || {}),
+          ...(state.session.lecture_positions || {})
+        }
+      };
+    }
+  } catch (e) {
+    console.warn("Server session fetch error:", e);
+  }
+
+  // 3. Fallback to cookies if present
+  const getCookie = (name) => {
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? decodeURIComponent(match[2]) : null;
+  };
+  const cookieMod = getCookie('or_quest_last_module');
+  const cookieTime = getCookie('or_quest_last_time');
+  if (cookieMod && !state.session.last_module_id) {
+    state.session.last_module_id = cookieMod;
+  }
+  if (cookieMod && cookieTime && !state.session.lecture_positions[cookieMod]) {
+    state.session.lecture_positions[cookieMod] = parseFloat(cookieTime);
+  }
+
+  // 4. Apply remembered settings to state and UI
+  if (state.session.playback_speed) {
+    state.playbackSpeed = state.session.playback_speed;
+    const speedSlider = document.getElementById("speed-slider");
+    if (speedSlider) speedSlider.value = state.playbackSpeed;
+    const speedVal = document.getElementById("speed-value");
+    if (speedVal) speedVal.innerText = `${state.playbackSpeed.toFixed(2)}x`;
+  }
+  if (state.session.subtitles_enabled !== undefined) {
+    state.subtitlesEnabled = state.session.subtitles_enabled;
+    const subBtn = document.getElementById("sub-toggle-btn");
+    if (subBtn) subBtn.classList.toggle("active-control", state.subtitlesEnabled);
+  }
+  if (state.session.subtitle_size) {
+    state.subtitleSize = state.session.subtitle_size;
+  }
+  if (state.session.subtitle_contrast) {
+    state.subtitleContrast = state.session.subtitle_contrast;
+  }
+  applySubtitlePreferences();
+}
+
+let sessionSaveTimeout = null;
+function persistSession(immediate = false) {
+  if (sessionSaveTimeout) clearTimeout(sessionSaveTimeout);
+
+  const doSave = async () => {
+    try {
+      // 1. LocalStorage
+      localStorage.setItem('or_quest_session', JSON.stringify(state.session));
+
+      // 2. Cookie
+      const curMod = state.session.last_module_id || 'module_aug10';
+      const curPos = (state.session.lecture_positions && state.session.lecture_positions[curMod]) ? state.session.lecture_positions[curMod] : 0;
+      document.cookie = `or_quest_last_module=${encodeURIComponent(curMod)}; path=/; max-age=31536000`;
+      document.cookie = `or_quest_last_time=${encodeURIComponent(curPos)}; path=/; max-age=31536000`;
+
+      // 3. API
+      if (immediate && navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(state.session)], { type: 'application/json' });
+        navigator.sendBeacon('/api/session', blob);
+      } else {
+        await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state.session)
+        });
+      }
+
+      // Update HUD save indicator
+      const hudSave = document.getElementById("hud-save-indicator");
+      const hudSaveText = document.getElementById("hud-save-text");
+      if (hudSave && hudSaveText) {
+        hudSave.classList.remove("hidden");
+        hudSaveText.innerText = `Saved (${formatTime(curPos)})`;
+      }
+    } catch (e) {
+      console.warn("Session persist error:", e);
+    }
+  };
+
+  if (immediate) {
+    doSave();
+  } else {
+    sessionSaveTimeout = setTimeout(doSave, 800);
+  }
+}
+
+function showResumeToast(timeSec) {
+  const existing = document.getElementById("resume-toast");
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.id = "resume-toast";
+  toast.className = "absolute bottom-16 left-6 z-40 flex items-center gap-3 px-4 py-2.5 rounded-xl bg-dark-900/95 border border-brand-500/50 shadow-2xl backdrop-blur-md animate-fade-in";
+  toast.innerHTML = `
+    <span class="text-sm">📍</span>
+    <span class="text-xs text-slate-200">Resumed at <strong class="text-brand-400 font-mono">${formatTime(timeSec)}</strong></span>
+    <button onclick="restartLectureFromBeginning()" class="text-xs font-semibold px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 hover:bg-brand-500/30 transition">
+      Start from 00:00
+    </button>
+    <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white text-xs ml-1">✕</button>
+  `;
+  const videoWrapper = document.getElementById("main-video")?.parentElement;
+  if (videoWrapper) {
+    videoWrapper.style.position = 'relative';
+    videoWrapper.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentElement) toast.remove();
+    }, 8000);
+  }
+}
+
+function restartLectureFromBeginning() {
+  playSfx('click');
+  const video = document.getElementById("main-video");
+  if (video) {
+    video.currentTime = 0;
+    if (state.currentModule && state.session) {
+      state.session.lecture_positions[state.currentModule.id] = 0;
+      persistSession(true);
+    }
+  }
+  const toast = document.getElementById("resume-toast");
+  if (toast) toast.remove();
+}
+
 // ----------------- DATA LOADING -----------------
 async function initApp() {
   try {
     lucide.createIcons();
+    await initSessionMemory();
     initSubtitlePreferences();
     await loadProgress();
     await loadMinigames();
@@ -298,7 +481,19 @@ async function loadWorkspaceLectures() {
     renderManagerInventory();
 
     if (state.modules.length > 0) {
-      loadModule(state.modules[0].id);
+      const initialModId = (state.session && state.session.last_module_id && state.modules.some(m => m.id === state.session.last_module_id))
+        ? state.session.last_module_id
+        : state.modules[0].id;
+      loadModule(initialModId);
+      const lecSelect = document.getElementById("lecture-selector");
+      if (lecSelect) lecSelect.value = initialModId;
+
+      if (state.session && state.session.last_tab && state.session.last_tab !== 'theater') {
+        switchTab(state.session.last_tab);
+      }
+      if (state.session && state.session.last_side_tab && state.session.last_side_tab !== 'slides') {
+        switchSideTab(state.session.last_side_tab);
+      }
     }
   } catch (e) {
     console.error("Error loading lectures:", e);
@@ -399,10 +594,25 @@ async function loadModule(moduleId) {
     state.currentStream = "";
   }
 
-  // Load video source
+  // Load video source & restore remembered playback position
   const video = document.getElementById("main-video");
+  const savedPos = (state.session && state.session.lecture_positions) ? (state.session.lecture_positions[moduleId] || 0) : 0;
+  if (state.session) {
+    state.session.last_module_id = moduleId;
+    persistSession();
+  }
+
   if (state.currentStream) {
     video.src = `/api/video/${encodeURIComponent(mod.folder)}/${encodeURIComponent(state.currentStream)}`;
+    if (savedPos > 3) {
+      const onLoadedMeta = () => {
+        if (video.duration && savedPos < (video.duration - 5)) {
+          video.currentTime = savedPos;
+          showResumeToast(savedPos);
+        }
+      };
+      video.addEventListener("loadedmetadata", onLoadedMeta, { once: true });
+    }
   } else {
     video.src = "";
   }
@@ -492,10 +702,39 @@ video.addEventListener("play", () => {
 
 video.addEventListener("pause", () => {
   updatePlayBtn(false);
+  if (state.currentModule && state.session) {
+    state.session.lecture_positions[state.currentModule.id] = Math.floor(video.currentTime || 0);
+    persistSession(true);
+  }
 });
 
 video.addEventListener("ended", () => {
   updatePlayBtn(false);
+  if (state.currentModule && state.session) {
+    state.session.lecture_positions[state.currentModule.id] = 0;
+    persistSession(true);
+  }
+});
+
+video.addEventListener("seeked", () => {
+  if (state.currentModule && state.session) {
+    state.session.lecture_positions[state.currentModule.id] = Math.floor(video.currentTime || 0);
+    persistSession();
+  }
+});
+
+window.addEventListener("beforeunload", () => {
+  if (state.currentModule && state.session && video.currentTime) {
+    state.session.lecture_positions[state.currentModule.id] = Math.floor(video.currentTime);
+  }
+  persistSession(true);
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state.currentModule && state.session && video.currentTime) {
+    state.session.lecture_positions[state.currentModule.id] = Math.floor(video.currentTime);
+    persistSession(true);
+  }
 });
 
 // Keyboard navigation: Spacebar toggles Play/Pause, Arrow keys seek
@@ -544,6 +783,15 @@ video.addEventListener("timeupdate", () => {
   if (Math.abs(cur - lastReportedSecond) >= 20) {
     lastReportedSecond = cur;
     sendPlayerAction("watch_video", { seconds: 20, speed: state.playbackSpeed });
+  }
+
+  // Periodic session position auto-save every 5 seconds
+  const intSec = Math.floor(cur);
+  if (intSec % 5 === 0 && intSec > 0 && state.currentModule && state.session) {
+    if (state.session.lecture_positions[state.currentModule.id] !== intSec) {
+      state.session.lecture_positions[state.currentModule.id] = intSec;
+      persistSession();
+    }
   }
 
   // 1. SUBTITLE SYNC
@@ -616,6 +864,11 @@ function setSpeed(speed) {
     chip.classList.toggle("active-speed", parseFloat(chip.innerText) === speed);
   });
 
+  if (state.session) {
+    state.session.playback_speed = speed;
+    persistSession();
+  }
+
   if (speed >= 1.5) {
     sendPlayerAction("watch_video", { seconds: 1, speed: speed });
   }
@@ -627,6 +880,11 @@ function onSpeedSlider(val) {
   video.playbackRate = speed;
   document.getElementById("speed-value").innerText = `${speed.toFixed(2)}x`;
   document.querySelectorAll(".speed-chip").forEach(chip => chip.classList.remove("active-speed"));
+
+  if (state.session) {
+    state.session.playback_speed = speed;
+    persistSession();
+  }
 }
 
 function toggleSubtitles() {
@@ -642,6 +900,11 @@ function toggleSubtitles() {
     ccBtn.classList.replace("border-brand-500", "border-slate-700");
     ccBtn.classList.replace("text-brand-300", "text-slate-400");
     subtitleOverlay.classList.add("opacity-0");
+  }
+
+  if (state.session) {
+    state.session.subtitles_enabled = state.subtitlesEnabled;
+    persistSession();
   }
 }
 
@@ -2236,6 +2499,337 @@ function closeCelebrationModal() {
   const modal = document.getElementById("celebration-modal");
   modal.classList.add("hidden");
   modal.classList.remove("flex");
+}
+
+// ==================== KNOWLEDGE BASE LOGIC ====================
+
+async function loadKnowledgeBase() {
+  try {
+    if (!state.knowledgeBaseData || state.knowledgeBaseData.length === 0) {
+      const res = await fetch("/api/knowledge-base");
+      if (res.ok) {
+        state.knowledgeBaseData = await res.json();
+      }
+    }
+    renderKnowledgeBaseView();
+  } catch (e) {
+    console.error("Error loading knowledge base:", e);
+  }
+}
+
+function selectKnowledgeBaseModule(modId) {
+  playSfx('click');
+  state.kbSelectedModule = modId;
+
+  // Update active chip styling
+  document.querySelectorAll(".kb-chip").forEach(chip => {
+    chip.classList.remove("active", "bg-brand-600", "text-white");
+    chip.classList.add("bg-dark-800", "text-slate-300");
+  });
+  const activeBtn = document.getElementById(`kb-chip-${modId}`);
+  if (activeBtn) {
+    activeBtn.classList.add("active", "bg-brand-600", "text-white");
+    activeBtn.classList.remove("bg-dark-800", "text-slate-300");
+  }
+
+  renderKnowledgeBaseView();
+}
+
+function handleKnowledgeBaseSearch() {
+  const input = document.getElementById("kb-search-input");
+  state.kbSearchQuery = input ? input.value.trim().toLowerCase() : "";
+  const clearBtn = document.getElementById("kb-search-clear");
+  if (clearBtn) {
+    clearBtn.classList.toggle("hidden", !state.kbSearchQuery);
+  }
+  renderKnowledgeBaseView();
+}
+
+function clearKnowledgeBaseSearch() {
+  playSfx('click');
+  const input = document.getElementById("kb-search-input");
+  if (input) input.value = "";
+  state.kbSearchQuery = "";
+  const clearBtn = document.getElementById("kb-search-clear");
+  if (clearBtn) clearBtn.classList.add("hidden");
+  renderKnowledgeBaseView();
+}
+
+function renderKnowledgeBaseView() {
+  const container = document.getElementById("kb-content-container");
+  if (!container) return;
+
+  if (!state.knowledgeBaseData || state.knowledgeBaseData.length === 0) {
+    container.innerHTML = `
+      <div class="p-8 text-center text-slate-400 bg-dark-900 rounded-2xl border border-slate-800">
+        <i data-lucide="loader" class="w-8 h-8 animate-spin mx-auto mb-2 text-brand-400"></i>
+        <p class="text-sm">Loading transcript-grounded knowledge base...</p>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+
+  // Filter modules by chip selection
+  let filteredModules = state.knowledgeBaseData;
+  if (state.kbSelectedModule !== 'all') {
+    filteredModules = filteredModules.filter(m => m.module_id === state.kbSelectedModule);
+  }
+
+  const query = state.kbSearchQuery;
+  let html = "";
+
+  filteredModules.forEach(mod => {
+    // If query exists, filter internal items
+    const matchesModule = !query || 
+      mod.title.toLowerCase().includes(query) || 
+      mod.topic.toLowerCase().includes(query) || 
+      mod.executive_summary.toLowerCase().includes(query);
+
+    const matchingConcepts = (mod.core_concepts || []).filter(c => 
+      !query || matchesModule || c.term.toLowerCase().includes(query) || c.definition.toLowerCase().includes(query) || c.category.toLowerCase().includes(query)
+    );
+
+    const matchingMath = (mod.mathematical_models || []).filter(m => 
+      !query || matchesModule || m.name.toLowerCase().includes(query) || (m.notes && m.notes.toLowerCase().includes(query)) || m.latex.toLowerCase().includes(query)
+    );
+
+    const matchingAlgorithms = (mod.algorithms_and_steps || []).filter(a => 
+      !query || matchesModule || a.name.toLowerCase().includes(query) || (a.notes && a.notes.toLowerCase().includes(query)) || a.steps.some(s => s.toLowerCase().includes(query))
+    );
+
+    const matchingDiscussions = (mod.classroom_discussions || []).filter(d => 
+      !query || matchesModule || d.topic.toLowerCase().includes(query) || d.student_question.toLowerCase().includes(query) || d.professor_answer.toLowerCase().includes(query)
+    );
+
+    const matchingWatchpoints = (mod.exam_watchpoints || []).filter(w => 
+      !query || matchesModule || w.title.toLowerCase().includes(query) || w.warning.toLowerCase().includes(query) || w.rule.toLowerCase().includes(query)
+    );
+
+    // If query provided and nothing matches in this module, skip
+    if (query && !matchesModule && matchingConcepts.length === 0 && matchingMath.length === 0 && 
+        matchingAlgorithms.length === 0 && matchingDiscussions.length === 0 && matchingWatchpoints.length === 0) {
+      return;
+    }
+
+    html += `
+      <div class="p-6 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl space-y-6">
+        
+        <!-- MODULE BANNER -->
+        <div class="border-b border-slate-800 pb-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-md bg-brand-500/10 border border-brand-500/30 text-brand-400 font-mono text-xs font-semibold">
+                ${mod.lecture_date}
+              </span>
+              <span class="text-xs text-slate-400 font-mono">Duration: ${mod.duration_min} mins</span>
+            </div>
+            <button onclick="jumpToKnowledgeTimestamp('${mod.module_id}', 0)" class="flex items-center gap-1 px-3 py-1 rounded-lg bg-brand-600/20 hover:bg-brand-600/30 border border-brand-500/40 text-brand-300 text-xs font-semibold transition">
+              <i data-lucide="play" class="w-3.5 h-3.5"></i>
+              <span>Play Session Video</span>
+            </button>
+          </div>
+          <h3 class="text-lg font-black text-white">${mod.title}</h3>
+          <p class="text-xs text-brand-400 font-medium">${mod.topic}</p>
+          <div class="mt-3 p-3.5 rounded-xl bg-dark-950/80 border border-slate-800/80 text-xs text-slate-300 leading-relaxed">
+            <strong class="text-slate-100 font-semibold block mb-1">📋 Executive Summary:</strong>
+            ${mod.executive_summary}
+          </div>
+        </div>
+
+        <!-- 1. CORE CONCEPTS -->
+        ${matchingConcepts.length > 0 ? `
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <span class="text-brand-400">💡</span> Core Theoretical Concepts (${matchingConcepts.length})
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              ${matchingConcepts.map(c => `
+                <div class="p-3.5 rounded-xl bg-dark-950 border border-slate-800 hover:border-brand-500/40 transition flex flex-col justify-between">
+                  <div>
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                      <span class="font-bold text-sm text-brand-300">${c.term}</span>
+                      <span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">${c.category}</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">${c.definition}</p>
+                  </div>
+                  <div class="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
+                    <span class="text-slate-500 font-mono">Lecture ref:</span>
+                    <button onclick="jumpToKnowledgeTimestamp('${mod.module_id}', ${c.time_sec || 0})" class="inline-flex items-center gap-1 font-mono font-bold text-accent-400 hover:text-accent-300 bg-accent-500/10 hover:bg-accent-500/20 px-2 py-0.5 rounded transition">
+                      <span>▶</span>
+                      <span>${c.timestamp || formatTime(c.time_sec || 0)}</span>
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 2. MATHEMATICAL MODELS & FORMULAS -->
+        ${matchingMath.length > 0 ? `
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <span class="text-accent-400">📐</span> Mathematical Formulations & KaTeX (${matchingMath.length})
+            </h4>
+            <div class="space-y-3">
+              ${matchingMath.map(m => `
+                <div class="p-4 rounded-xl bg-dark-950 border border-slate-800 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-xs text-white">${m.name}</span>
+                    ${m.time_sec ? `
+                      <button onclick="jumpToKnowledgeTimestamp('${mod.module_id}', ${m.time_sec})" class="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-accent-400 hover:text-accent-300 bg-accent-500/10 px-2 py-0.5 rounded transition">
+                        <span>▶</span>
+                        <span>${m.timestamp || formatTime(m.time_sec)}</span>
+                      </button>
+                    ` : ''}
+                  </div>
+                  <div class="kb-math-block overflow-x-auto p-3 rounded-lg bg-dark-900 border border-slate-800/80 font-mono text-xs text-emerald-300 text-center">
+                    $$${m.latex}$$
+                  </div>
+                  ${m.notes ? `<p class="text-[11px] text-slate-400 italic">${m.notes}</p>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 3. ALGORITHMS & STEP-BY-STEP PROCEDURES -->
+        ${matchingAlgorithms.length > 0 ? `
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <span class="text-yellow-400">⚙️</span> Algorithmic Execution Steps (${matchingAlgorithms.length})
+            </h4>
+            <div class="space-y-3">
+              ${matchingAlgorithms.map(a => `
+                <div class="p-4 rounded-xl bg-dark-950 border border-slate-800 space-y-3">
+                  <span class="font-bold text-xs text-yellow-300 block">${a.name}</span>
+                  <div class="space-y-1.5">
+                    ${a.steps.map((s, idx) => `
+                      <div class="flex items-start gap-2.5 text-xs text-slate-300">
+                        <span class="w-5 h-5 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-mono text-[10px] font-bold shrink-0 mt-0.5">${idx + 1}</span>
+                        <span class="leading-relaxed">${s}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                  ${a.notes ? `<p class="text-[11px] text-slate-400 bg-dark-900 p-2 rounded border border-slate-800 italic">💡 ${a.notes}</p>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 4. CLASSROOM DISCUSSIONS & STUDENT Q&A -->
+        ${matchingDiscussions.length > 0 ? `
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <span class="text-cyan-400">💬</span> Classroom Q&A & Student Inquiries (${matchingDiscussions.length})
+            </h4>
+            <div class="space-y-3">
+              ${matchingDiscussions.map(d => `
+                <div class="p-4 rounded-xl bg-dark-950 border border-slate-800 space-y-3">
+                  <div class="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
+                    <span class="font-bold text-xs text-cyan-300 flex items-center gap-1.5">
+                      <span>📌</span>
+                      <span>Topic: ${d.topic}</span>
+                    </span>
+                    <button onclick="jumpToKnowledgeTimestamp('${mod.module_id}', ${d.time_sec || 0})" class="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-accent-400 hover:text-accent-300 bg-accent-500/10 px-2 py-0.5 rounded transition">
+                      <span>▶</span>
+                      <span>${d.timestamp || formatTime(d.time_sec || 0)}</span>
+                    </button>
+                  </div>
+                  <div class="space-y-2 text-xs">
+                    <div class="p-2.5 rounded-lg bg-dark-900 border border-slate-800/60">
+                      <strong class="text-slate-400 text-[11px] block mb-0.5">👤 Student Question:</strong>
+                      <span class="text-slate-200">"${d.student_question}"</span>
+                    </div>
+                    <div class="p-2.5 rounded-lg bg-brand-950/40 border border-brand-500/20">
+                      <strong class="text-brand-400 text-[11px] block mb-0.5">🎓 Prof. Lowell Lorenzo:</strong>
+                      <span class="text-slate-200">"${d.professor_answer}"</span>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 5. EXAM WATCHPOINTS & TRAPS -->
+        ${matchingWatchpoints.length > 0 ? `
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-red-400 flex items-center gap-1.5">
+              <span class="text-red-400">⚠️</span> Exam Watchpoints & Pitfalls (${matchingWatchpoints.length})
+            </h4>
+            <div class="space-y-2.5">
+              ${matchingWatchpoints.map(w => `
+                <div class="p-3.5 rounded-xl bg-red-950/20 border border-red-500/30 space-y-2">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="font-bold text-xs text-red-300 flex items-center gap-1.5">
+                      <span>🚨</span>
+                      <span>${w.title}</span>
+                    </span>
+                    <button onclick="jumpToKnowledgeTimestamp('${mod.module_id}', ${w.time_sec || 0})" class="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-red-300 hover:text-white bg-red-500/20 px-2 py-0.5 rounded transition">
+                      <span>▶</span>
+                      <span>${w.timestamp || formatTime(w.time_sec || 0)}</span>
+                    </button>
+                  </div>
+                  <p class="text-xs text-slate-300"><strong class="text-red-400 font-semibold">Trap Warning:</strong> ${w.warning}</p>
+                  <p class="text-xs text-emerald-300 bg-emerald-950/30 p-2 rounded border border-emerald-500/20"><strong class="font-semibold text-emerald-400">Actionable Rule:</strong> ${w.rule}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+      </div>
+    `;
+  });
+
+  if (!html) {
+    html = `
+      <div class="p-12 text-center text-slate-400 bg-dark-900 rounded-2xl border border-slate-800 space-y-2">
+        <span class="text-3xl block">🔍</span>
+        <h4 class="font-bold text-white text-sm">No knowledge base items found</h4>
+        <p class="text-xs text-slate-400">No terms, formulas, or Q&A match your search query "${state.kbSearchQuery}".</p>
+        <button onclick="clearKnowledgeBaseSearch()" class="mt-2 px-3 py-1.5 rounded-xl bg-brand-600 text-white text-xs font-semibold">Clear Search</button>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+  lucide.createIcons();
+  renderMathInContainer(container);
+}
+
+function renderMathInContainer(container) {
+  if (window.renderMathInElement) {
+    try {
+      window.renderMathInElement(container, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false }
+        ],
+        throwOnError: false
+      });
+    } catch (e) {
+      console.warn("KaTeX rendering warning:", e);
+    }
+  }
+}
+
+async function jumpToKnowledgeTimestamp(moduleId, timeSec) {
+  playSfx('click');
+  switchTab('theater');
+  if (!state.currentModule || state.currentModule.id !== moduleId) {
+    await loadModule(moduleId);
+    const select = document.getElementById("lecture-selector");
+    if (select) select.value = moduleId;
+  }
+  const video = document.getElementById("main-video");
+  if (video) {
+    video.currentTime = timeSec;
+    video.play().catch(e => console.warn("Video play error:", e));
+  }
 }
 
 // Global hotkeys

@@ -42,6 +42,10 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Chart.js for Radar Skill Chart -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- KaTeX for crisp mathematical formulas -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body class="bg-dark-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white">
@@ -78,6 +82,10 @@
           <i data-lucide="gamepad-2" class="w-4 h-4"></i>
           <span>OR Arcade</span>
         </button>
+        <button onclick="switchTab('knowledgebase')" id="tab-btn-knowledgebase" class="nav-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white">
+          <i data-lucide="book-open" class="w-4 h-4"></i>
+          <span>Knowledge Base</span>
+        </button>
         <button onclick="switchTab('trophy')" id="tab-btn-trophy" class="nav-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white">
           <i data-lucide="award" class="w-4 h-4"></i>
           <span>Trophy Room</span>
@@ -89,7 +97,13 @@
       </nav>
 
       <!-- PLAYER HUD / PROGRESS -->
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3">
+        <!-- Memory / Save Status Indicator -->
+        <div id="hud-save-indicator" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-mono" title="Playback position saved to memory">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="hud-save-text">Saved</span>
+        </div>
+
         <!-- Streak -->
         <div class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-semibold" title="Study Streak">
           <span>🔥</span>
@@ -105,7 +119,7 @@
             </span>
             <span class="text-slate-400 font-mono text-[11px]" id="hud-xp-text">0 / 300 XP</span>
           </div>
-          <div class="w-28 sm:w-36 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+          <div class="w-24 sm:w-32 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
             <div id="hud-xp-bar" class="h-full bg-gradient-to-r from-brand-500 to-accent-500 transition-all duration-500" style="width: 0%"></div>
           </div>
         </div>
@@ -870,6 +884,74 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="badges-grid">
           <!-- Dynamically populated -->
         </div>
+      </div>
+
+    </section>
+
+    <!-- ==================== VIEW: KNOWLEDGE BASE ==================== -->
+    <section id="view-knowledgebase" class="hidden space-y-6">
+      
+      <!-- HEADER BANNER & CONTROLS -->
+      <div class="p-6 rounded-2xl bg-dark-900 border border-slate-800 shadow-xl space-y-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">📚</span>
+              <h2 class="text-xl font-black text-white tracking-wide">IE 214 Master Knowledge Base</h2>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 font-mono font-semibold">Transcript-Grounded</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 max-w-2xl">
+              Comprehensive summaries, core concepts, KaTeX mathematical formulas, algorithmic procedures, classroom Q&A discussions, and exam watchpoints compiled directly from Prof. Lowell Lorenzo's graduate lectures at UP Diliman.
+            </p>
+          </div>
+
+          <!-- SEARCH BOX -->
+          <div class="relative w-full md:w-80">
+            <input 
+              type="text" 
+              id="kb-search-input" 
+              oninput="handleKnowledgeBaseSearch()"
+              placeholder="Search concepts, formulas, Q&A..." 
+              class="w-full bg-dark-950 border border-slate-700 rounded-xl px-4 py-2.5 pl-10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition"
+            >
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
+            <button 
+              id="kb-search-clear" 
+              onclick="clearKnowledgeBaseSearch()" 
+              class="hidden absolute right-3 top-2.5 text-slate-400 hover:text-white text-xs font-bold"
+            >✕</button>
+          </div>
+        </div>
+
+        <!-- MODULE SELECTOR CHIPS -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1" id="kb-module-chips">
+          <button onclick="selectKnowledgeBaseModule('all')" id="kb-chip-all" class="kb-chip active px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-brand-600 text-white transition">
+            All Sessions (Overview)
+          </button>
+          <button onclick="selectKnowledgeBaseModule('module_aug10')" id="kb-chip-module_aug10" class="kb-chip px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-dark-800 text-slate-300 hover:text-white border border-slate-700/60 transition">
+            Aug 10: OR Foundations
+          </button>
+          <button onclick="selectKnowledgeBaseModule('module_aug17')" id="kb-chip-module_aug17" class="kb-chip px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-dark-800 text-slate-300 hover:text-white border border-slate-700/60 transition">
+            Aug 17: LP Formulation
+          </button>
+          <button onclick="selectKnowledgeBaseModule('module_aug24')" id="kb-chip-module_aug24" class="kb-chip px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-dark-800 text-slate-300 hover:text-white border border-slate-700/60 transition">
+            Aug 24: Geometry & BFS
+          </button>
+          <button onclick="selectKnowledgeBaseModule('module_sep07')" id="kb-chip-module_sep07" class="kb-chip px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-dark-800 text-slate-300 hover:text-white border border-slate-700/60 transition">
+            Sep 7: Simplex & Big-M
+          </button>
+          <button onclick="selectKnowledgeBaseModule('module_sep14')" id="kb-chip-module_sep14" class="kb-chip px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-dark-800 text-slate-300 hover:text-white border border-slate-700/60 transition">
+            Sep 14: Duality Theory
+          </button>
+          <button onclick="selectKnowledgeBaseModule('module_oct5')" id="kb-chip-module_oct5" class="kb-chip px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-dark-800 text-slate-300 hover:text-white border border-slate-700/60 transition">
+            Oct 5: Sensitivity & Midterm Review
+          </button>
+        </div>
+      </div>
+
+      <!-- KNOWLEDGE BASE CONTENT DYNAMIC CONTAINER -->
+      <div id="kb-content-container" class="space-y-6">
+        <!-- Rendered by JS -->
       </div>
 
     </section>

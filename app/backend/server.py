@@ -14,7 +14,8 @@ import fitz  # PyMuPDF
 from app.backend.course_data import (
     MODULES_DATA, MINIGAMES_DATA, BADGES_DATA, RANKS_DATA,
     EXAM_INTEL_DATA, save_custom_marker, load_custom_markers,
-    load_user_notes, save_user_note, delete_user_note
+    load_user_notes, save_user_note, delete_user_note,
+    load_session_state, save_session_state
 )
 from app.backend.scanner import scan_workspace
 from app.backend.transcriber import (
@@ -26,6 +27,10 @@ from app.backend.gamification import (
     load_progress,
     get_current_rank,
     record_player_action
+)
+from app.backend.knowledge_base import (
+    get_all_knowledge_base,
+    get_module_knowledge_base
 )
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -334,6 +339,52 @@ def remove_user_note(note_id: str):
     """Delete a student exam note."""
     res = delete_user_note(note_id)
     return {"success": res}
+
+
+@app.get("/api/session")
+def get_session():
+    """Retrieve remembered playback positions, active lecture, and UI state."""
+    session = load_session_state()
+    response = JSONResponse(content=session)
+    last_mod = session.get("last_module_id", "module_aug10")
+    last_pos = str(session.get("lecture_positions", {}).get(last_mod, 0))
+    response.set_cookie(key="or_quest_last_module", value=last_mod, max_age=31536000, path="/")
+    response.set_cookie(key="or_quest_last_time", value=last_pos, max_age=31536000, path="/")
+    return response
+
+
+@app.post("/api/session")
+async def update_session(request: Request):
+    """Save user playback position, active lecture, and UI settings."""
+    try:
+        body = await request.json()
+    except Exception:
+        raw = await request.body()
+        import json
+        body = json.loads(raw.decode("utf-8")) if raw else {}
+
+    session = save_session_state(body)
+    response = JSONResponse(content={"success": True, "session": session})
+    last_mod = session.get("last_module_id", "module_aug10")
+    last_pos = str(session.get("lecture_positions", {}).get(last_mod, 0))
+    response.set_cookie(key="or_quest_last_module", value=last_mod, max_age=31536000, path="/")
+    response.set_cookie(key="or_quest_last_time", value=last_pos, max_age=31536000, path="/")
+    return response
+
+
+@app.get("/api/knowledge-base")
+def get_knowledge_base():
+    """Retrieve comprehensive transcript-grounded knowledge base for all lecture sessions."""
+    return get_all_knowledge_base()
+
+
+@app.get("/api/knowledge-base/{module_id}")
+def get_single_knowledge_base(module_id: str):
+    """Retrieve transcript-grounded knowledge base notes for a specific module."""
+    kb = get_module_knowledge_base(module_id)
+    if not kb:
+        raise HTTPException(status_code=404, detail="Knowledge base not found for this module")
+    return kb
 
 
 # Mount frontend static files

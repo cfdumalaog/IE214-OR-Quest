@@ -1,8 +1,12 @@
-# ─── Video Recordings (too large for git) ───────────────────────────────────
+# ─── Video & Audio Recordings (too large for git) ────────────────────────────
 *.mp4
 *.mov
 *.avi
 *.mkv
+*.m4a
+*.wav
+*.mp3
+*.aac
 
 # ─── VTT Transcripts (auto-generated, large text files) ─────────────────────
 *.vtt
