@@ -234,6 +234,25 @@ function switchArcadeGame(gameKey) {
   }
 }
 
+// ----------------- TIME FORMATTING UTILITY -----------------
+function formatTime(secs) {
+  if (isNaN(secs) || secs === null || secs === undefined) return "00:00";
+  const totalSecs = Math.max(0, Math.floor(secs));
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  if (h > 0) {
+    return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+  return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function applySubtitlePreferences() {
+  if (typeof initSubtitlePreferences === 'function') {
+    initSubtitlePreferences();
+  }
+}
+
 // ----------------- SESSION MEMORY & PERSISTENCE -----------------
 async function initSessionMemory() {
   // 1. Read localStorage
@@ -244,7 +263,7 @@ async function initSessionMemory() {
       state.session = { ...state.session, ...parsed };
     }
   } catch (e) {
-    console.warn("Local session read error:", e);
+    console.warn("Local session read warning:", e);
   }
 
   // 2. Fetch /api/session
@@ -262,13 +281,17 @@ async function initSessionMemory() {
       };
     }
   } catch (e) {
-    console.warn("Server session fetch error:", e);
+    console.warn("Server session fetch warning:", e);
   }
 
   // 3. Fallback to cookies if present
   const getCookie = (name) => {
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-    return match ? decodeURIComponent(match[2]) : null;
+    try {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      return match ? decodeURIComponent(match[2]) : null;
+    } catch (_) {
+      return null;
+    }
   };
   const cookieMod = getCookie('or_quest_last_module');
   const cookieTime = getCookie('or_quest_last_time');
@@ -298,7 +321,7 @@ async function initSessionMemory() {
   if (state.session.subtitle_contrast) {
     state.subtitleContrast = state.session.subtitle_contrast;
   }
-  applySubtitlePreferences();
+  initSubtitlePreferences();
 }
 
 let sessionSaveTimeout = null;
@@ -388,17 +411,13 @@ function restartLectureFromBeginning() {
 
 // ----------------- DATA LOADING -----------------
 async function initApp() {
-  try {
-    lucide.createIcons();
-    await initSessionMemory();
-    initSubtitlePreferences();
-    await loadProgress();
-    await loadMinigames();
-    await loadExamIntel();
-    await loadWorkspaceLectures();
-  } catch (err) {
-    console.error("Initialization error:", err);
-  }
+  try { lucide.createIcons(); } catch (e) { console.warn("Lucide icons:", e); }
+  try { await initSessionMemory(); } catch (e) { console.warn("Session memory:", e); }
+  try { initSubtitlePreferences(); } catch (e) { console.warn("Subtitle preferences:", e); }
+  try { await loadProgress(); } catch (e) { console.warn("Progress load:", e); }
+  try { await loadMinigames(); } catch (e) { console.warn("Minigames load:", e); }
+  try { await loadExamIntel(); } catch (e) { console.warn("Exam intel load:", e); }
+  try { await loadWorkspaceLectures(); } catch (e) { console.error("Workspace lectures load failed:", e); }
 }
 
 async function loadProgress() {
@@ -605,13 +624,17 @@ async function loadModule(moduleId) {
   if (state.currentStream) {
     video.src = `/api/video/${encodeURIComponent(mod.folder)}/${encodeURIComponent(state.currentStream)}`;
     if (savedPos > 3) {
-      const onLoadedMeta = () => {
+      const seekToSaved = () => {
         if (video.duration && savedPos < (video.duration - 5)) {
           video.currentTime = savedPos;
           showResumeToast(savedPos);
         }
       };
-      video.addEventListener("loadedmetadata", onLoadedMeta, { once: true });
+      if (video.readyState >= 1 && video.duration) {
+        seekToSaved();
+      } else {
+        video.addEventListener("loadedmetadata", seekToSaved, { once: true });
+      }
     }
   } else {
     video.src = "";
@@ -756,17 +779,6 @@ document.addEventListener("keydown", (e) => {
 function seekVideo(seconds) {
   playSfx('click');
   video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
-}
-
-function formatTime(secs) {
-  if (isNaN(secs)) return "00:00";
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = Math.floor(secs % 60);
-  if (h > 0) {
-    return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-  }
-  return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
 let lastReportedSecond = 0;

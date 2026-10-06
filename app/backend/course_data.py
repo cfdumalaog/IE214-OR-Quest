@@ -98,7 +98,18 @@ def load_session_state() -> dict:
 def save_session_state(session_data: dict) -> dict:
     import time
     current = load_session_state()
-    current.update(session_data)
+    for k, v in session_data.items():
+        if isinstance(v, dict) and isinstance(current.get(k), dict):
+            current[k].update(v)
+        elif isinstance(v, list) and isinstance(current.get(k), list):
+            # Union of items preserving order
+            merged_list = list(current[k])
+            for item in v:
+                if item not in merged_list:
+                    merged_list.append(item)
+            current[k] = merged_list
+        else:
+            current[k] = v
     current["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
     os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
     with open(SESSION_FILE, "w", encoding="utf-8") as f:
